@@ -1,0 +1,53 @@
+
+image_topic: "/cam0/image_raw"
+point_feature_cfg:
+        H: 480 # Input image height
+        W: 752 # Input image width
+        min_cnt: 150
+
+        extract_method: "superpoint"    # supported: [superpoint]
+        superpoint:
+                weights_path: '/home/plus/plvins_ws/src/PL-VINS/feature_tracker/scripts/utils_point/superpoint/superpoint_v1.pth'
+                nms_dist: 4    # Non Maximum Suppression (NMS) distance
+                conf_thresh: 0.015 # Detector confidence threshold
+                nn_thresh: 0.7 # Descriptor matching threshold 
+                cuda: true # Use cuda GPU to speed up network processing speed
+        superpoint_trt:
+                engine_file_path: "/home/plus/tensorrt/tensorrt/trt_models/superpoint.trt"
+                nms_dist: 4
+                conf_thresh: 0.015
+       
+        match_method: "nnm"       # supported: [nnm，superglue]
+        nnm:
+                max_length: 5  # Maximum length of point tracks
+                nn_thresh: 0.7 # Descriptor matching threshold
+line_feature_cfg:
+        H: 480 # Input image height
+        W: 752 # Input image width
+        min_cnt: 60
+        num_samples: 5
+        extract_method: "sold2"
+        sold2:
+                min_dist_pts: 8
+                line_score: false
+                sampling: "regular"
+        match_method: "wunsch"
+        wunsch:
+                cross_check: True
+                top_k_candidates: 10
+                line_score: false
+camera_cfg:
+   model_type: PINHOLE
+   camera_name: camera
+   image_width: 752
+   image_height: 480
+   distortion_parameters:
+      k1: -2.917e-01
+      k2: 8.228e-02
+      p1: 5.333e-05
+      p2: -1.578e-04
+   projection_parameters:
+      fx: 4.616e+02
+      fy: 4.603e+02
+      cx: 3.630e+02
+      cy: 2.481e+02

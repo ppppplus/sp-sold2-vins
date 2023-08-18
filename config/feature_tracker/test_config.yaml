@@ -1,0 +1,23 @@
+
+image_topic: "/cam0/image_raw"
+point_feature_cfg:
+        weights_path: '/home/plus/Work/plvins_ws/src/PL-VINS/feature_tracker/scripts/superpoint/superpoint_v1.pth'
+        max_length: 5  # Maximum length of point tracks
+        nms_dist: 4    # Non Maximum Suppression (NMS) distance
+        conf_thresh: 0.015 # Detector confidence threshold
+        nn_thresh: 0.7 # Descriptor matching threshold 
+        cuda: false # Use cuda GPU to speed up network processing speed
+        H: 313 # Input image height
+        W: 725 # Input image width
+        min_cnt: 150
+line_feature_cfg:
+        cross_check: True
+        num_samples: 5
+        min_dist_pts: 8
+        top_k_candidates: 10
+        grid_size: 4
+        line_score: false
+        sampling: "regular"
+        H: 313 # Input image height
+        W: 725 # Input image width
+        min_cnt: 100
