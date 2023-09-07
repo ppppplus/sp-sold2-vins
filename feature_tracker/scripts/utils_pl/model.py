@@ -10,6 +10,8 @@ from .nets.heatmap_decoder import PixelShuffleDecoder
 from .nets.descriptor_decoder import SuperpointDescriptor
 from time import time 
 import numpy as np
+from .metrics import super_nms, line_map_to_segments
+from pyinstrument import Profiler
 
 class SPSOLD2Net(nn.Module):
     """ Full network for SOLD². """
@@ -193,6 +195,7 @@ class SPSOLD2ExtractModel(BaseExtractModel):
     def extract(self, img):
         # input img and output feature points   
         # This class runs the SuperPoint network and processes its outputs.
+        #########################################################
         torch_img, status = self.process_image(img)
         if status is False:
             print("Load image error, Please check image_info topic")
@@ -207,24 +210,187 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         junctions = outputs["junctions"]
         heatmap = outputs["heatmap"]
         coarse_desc  = outputs["descriptors"]
+        ########################################################
         pstime = time()
-        pts, pts_desc = self.reprocess_pts(junctions, heatmap, coarse_desc) # [3, n_pts]; [128, n_pts]
+        pts, pts_desc, _ = self.reprocess_pts_np(junctions, coarse_desc) # [3, n_pts]; [128, n_pts]
         petime = time()
         print("pt extract time: ", petime-pstime)
         lstime = time()
-        lines, lines_desc, valid_points = self.reprocess_lines(junctions, heatmap, coarse_desc)
+        lines, lines_desc, valid_points = self.reprocess_lines_np(junctions, heatmap, coarse_desc)
         letime = time()
         print("line extract time: ",letime-lstime)
         
         # print("superpoint run time:%f", end_time-start_time)
         # feature_points = pts[0:2].T.astype('int32')
-        return pts.cpu().numpy(), pts_desc, lines.cpu().numpy(), lines_desc, valid_points.cpu().numpy()
+        ############################################################
+        return pts, pts_desc, lines, lines_desc, valid_points
     
-    def reprocess_pts(self, junctions, heatmap, coarse_desc):
+    def reprocess_pts_np(self, junctions, coarse_desc):
+        semi = junctions.data.cpu().numpy().squeeze()
+        # --- Process points.
+        dense = np.exp(semi) # Softmax.
+        dense = dense / (np.sum(dense, axis=0)+.00001) # Should sum to 1.
+        # Remove dustbin.
+        nodust = dense[:-1, :, :]
+        # Reshape to get full resolution heatmap.
+        # Hc = int(self.H / self.cell)
+        # Wc = int(self.W / self.cell)
+        nodust = nodust.transpose(1, 2, 0)
+        heatmap = np.reshape(nodust, [self.Hc, self.Wc, self.grid_size, self.grid_size])
+        heatmap = np.transpose(heatmap, [0, 2, 1, 3])
+        heatmap = np.reshape(heatmap, [self.Hc*self.grid_size, self.Wc*self.grid_size])
+        xs, ys = np.where(heatmap >= self.conf_thresh) # Confidence threshold.
+        # xs = xs.astype(np.int32)
+        # ys = ys.astype(np.int32)
+        if len(xs) == 0:
+            return np.zeros((3, 0)), None, None
+        pts = np.zeros((3, len(xs))) # Populate point data sized 3xN.
+        pts[0, :] = ys
+        pts[1, :] = xs
+        pts[2, :] = heatmap[xs, ys]
+        pts, _ = self.nms_fast_np(pts, self.H, self.W, dist_thresh=self.nms_dist) # Apply NMS.
+        inds = np.argsort(pts[2,:])
+        pts = pts[:,inds[::-1]] # Sort by confidence.
+        # Remove points along border.
+        bord = self.border_remove
+        toremoveW = np.logical_or(pts[0, :] < bord, pts[0, :] >= (self.W-bord))
+        toremoveH = np.logical_or(pts[1, :] < bord, pts[1, :] >= (self.H-bord))
+        toremove = np.logical_or(toremoveW, toremoveH)
+        pts = pts[:, ~toremove]
+        # --- Process descriptor.
+        D = coarse_desc.shape[1]
+        if pts.shape[1] == 0:
+            desc = np.zeros((D, 0))
+        else:
+            # Interpolate into descriptor map using 2D point locations.
+            samp_pts = torch.from_numpy(pts[:2, :].copy())
+            samp_pts[0, :] = (samp_pts[0, :] / (float(self.W)/2.)) - 1.
+            samp_pts[1, :] = (samp_pts[1, :] / (float(self.H)/2.)) - 1.
+            samp_pts = samp_pts.transpose(0, 1).contiguous()
+            samp_pts = samp_pts.view(1, 1, -1, 2)
+            samp_pts = samp_pts.float()
+            samp_pts = samp_pts.cuda()
+        desc = torch.nn.functional.grid_sample(coarse_desc, samp_pts)
+        desc = desc.data.cpu().numpy().reshape(D, -1)
+        desc /= np.linalg.norm(desc, axis=0)[np.newaxis, :]
+        return pts, desc, heatmap
+    
+    def nms_fast_np(self, in_corners, H, W, dist_thresh):
+        """
+        Run a faster approximate Non-Max-Suppression on numpy corners shaped:
+        3xN [x_i,y_i,conf_i]^T
+    
+        Algo summary: Create a grid sized HxW. Assign each corner location a 1, rest
+        are zeros. Iterate through all the 1's and convert them either to -1 or 0.
+        Suppress points by setting nearby values to 0.
+    
+        Grid Value Legend:
+        -1 : Kept.
+        0 : Empty or suppressed.
+        1 : To be processed (converted to either kept or supressed).
+    
+        NOTE: The NMS first rounds points to integers, so NMS distance might not
+        be exactly dist_thresh. It also assumes points are within image boundaries.
+    
+        Inputs
+        in_corners - 3xN numpy array with corners [x_i, y_i, confidence_i]^T.
+        H - Image height.
+        W - Image width.
+        dist_thresh - Distance to suppress, measured as an infinty norm distance.
+        Returns
+        nmsed_corners - 3xN numpy matrix with surviving corners.
+        nmsed_inds - N length numpy vector with surviving corner indices.
+        """
+        grid = np.zeros((H, W)).astype(int) # Track NMS data.
+        inds = np.zeros((H, W)).astype(int) # Store indices of points.
+        # Sort by confidence and round to nearest int.
+        inds1 = np.argsort(-in_corners[2,:])
+        corners = in_corners[:,inds1]
+        rcorners = corners[:2,:].round().astype(int) # Rounded corners.
+        # Check for edge case of 0 or 1 corners.
+        if rcorners.shape[1] == 0:
+            return np.zeros((3,0)).astype(int), np.zeros(0).astype(int)
+        if rcorners.shape[1] == 1:
+            out = np.vstack((rcorners, in_corners[2])).reshape(3,1)
+            return out, np.zeros((1)).astype(int)
+        # Initialize the grid.
+        for i, rc in enumerate(rcorners.T):
+            grid[rcorners[1,i], rcorners[0,i]] = 1
+            inds[rcorners[1,i], rcorners[0,i]] = i
+        # Pad the border of the grid, so that we can NMS points near the border.
+        pad = dist_thresh
+        grid = np.pad(grid, ((pad,pad), (pad,pad)), mode='constant')
+        # Iterate through points, highest to lowest conf, suppress neighborhood.
+        count = 0
+        for i, rc in enumerate(rcorners.T):
+            # Account for top and left padding.
+            pt = (rc[0]+pad, rc[1]+pad)
+            if grid[pt[1], pt[0]] == 1: # If not yet suppressed.
+                grid[pt[1]-pad:pt[1]+pad+1, pt[0]-pad:pt[0]+pad+1] = 0
+                grid[pt[1], pt[0]] = -1
+                count += 1
+        # Get all surviving -1's and return sorted array of remaining corners.
+        keepy, keepx = np.where(grid==-1)
+        keepy, keepx = keepy - pad, keepx - pad
+        inds_keep = inds[keepy, keepx]
+        out = corners[:, inds_keep]
+        values = out[-1, :]
+        inds2 = np.argsort(-values)
+        out = out[:, inds2]
+        out_inds = inds1[inds_keep[inds2]]
+        return out, out_inds
+
+    
+    def reprocess_lines_np(self, junctions, heatmap, coarse_desc):
+        profiler = Profiler()
+        profiler.start()
+
+        junc_np = self.convert_junc_predictions_np(junctions)
+        # junc = self.convert_junc_predictions(junctions)
+        # junctions = torch.where(junc.squeeze()) 
+    
+        # junctions = torch.cat([junctions[0][..., None],
+        #                             junctions[1][..., None]], axis=-1)
+        junctions = np.where(junc_np.squeeze())
+        junctions = np.concatenate(
+            [junctions[0][..., None], junctions[1][..., None]], axis=-1)
+        if heatmap.shape[1] == 2:
+            # Convert to single channel directly from here
+            heatmap = nn.functional.softmax(heatmap, dim=1)[:, 1:, :, :]
+        else:
+            heatmap = torch.sigmoid(heatmap)
+        # heatmap = heatmap.cpu().numpy().transpose(0, 2, 3, 1)[0, :, :, 0]
+        heatmap = heatmap.squeeze()
+        # Run the line detector.
+        line_map, junctions, heatmap = self.line_detector.detect(
+            junctions, heatmap, device=self.device) 
+        # time2 = time()
+        # print("time1:", time11-time1, time2-time11) # 最耗时：0.5s
+        # heatmap = heatmap.cpu().numpy()
+        # if isinstance(line_map, torch.Tensor):
+        #     line_map = line_map.cpu().numpy()
+        # if isinstance(junctions, torch.Tensor):
+        #     junctions = junctions.cpu().numpy()
+        line_segments = self.line_map_to_segments(junctions, line_map)  # 第二耗时 0.23s
+        line_segments = torch.tensor(line_segments, dtype=torch.float32).to(self.device)
+        line_points, valid_points = self.sample_line_points(line_segments)  
+
+        line_points = line_points.reshape(-1, 2)
+        # Extract the descriptors for each point
+        grid = self.keypoints_to_grid(line_points)
+        line_desc = nn.functional.normalize(nn.functional.grid_sample(coarse_desc, grid)[0, :, :, 0], dim=0)
+        line_desc = line_desc.reshape((-1, len(line_segments), self.num_samples)) # reshape为每个线段对应的desc,128*num_lines*num_samples
+        profiler.stop()
+
+        profiler.print()
+        return line_segments.cpu().numpy(), line_desc, valid_points.cpu().numpy()
+
+    def reprocess_pts(self, junctions, coarse_desc):
         # reprocess net outputs and get pts&desc
         ### junctions: 1,65,Hc,Wc
         ### heatmap: 1,2,H,W
         ### coarse_desc: 1,128,Hc,Wc
+        time1 = time()
         semi = junctions.squeeze()
         dense = torch.exp(semi) # Softmax.
         dense = dense / (torch.sum(dense, axis=0)+.00001) # Should sum to 1.
@@ -241,6 +407,7 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         pts[0, :] = ys
         pts[1, :] = xs
         # pts[2, :] = heatmap[xs, ys]
+        print("time1: ", time()-time1)
         pts, _ = self.nms_fast(pts, self.H, self.W, dist_thresh=self.nms_dist) # Apply NMS.
         inds = torch.argsort(pts[2,:])
         inds = torch.flip(inds, dims=[0])
@@ -253,6 +420,7 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         pts = pts[:, ~toremove]
         # --- Process descriptor.
         D = coarse_desc.shape[1]
+        print("time2: ", time()-time1)
         if pts.shape[1] == 0:
             desc = torch.zeros((D, 0))
         else:
@@ -269,6 +437,7 @@ class SPSOLD2ExtractModel(BaseExtractModel):
             desc /= torch.norm(desc, dim=0)
             # desc = desc.reshape(D, -1)
             # desc = torch.norm(desc)[None]
+        print("time3: ", time()-time1)
         return pts, desc
     
     def reprocess_lines(self, junctions, heatmap, coarse_desc):
@@ -379,43 +548,86 @@ class SPSOLD2ExtractModel(BaseExtractModel):
 
         return line_points, valid_points
     
-    def line_map_to_segments(self, junctions, line_map):
-        """ Convert a line map to a Nx2x2 list of segments. """ 
-        line_map_tmp = line_map.clone()
+    # def line_map_to_segments(self, junctions, line_map):
+    #     profiler = Profiler()
+    #     profiler.start()
+    #     """ Convert a line map to a Nx2x2 list of segments. """ 
+    #     line_map_tmp = line_map.clone()
 
-        output_segments = torch.zeros([0, 2, 2]).to(self.device)
+    #     output_segments = torch.zeros([0, 2, 2]).to(self.device)
+    #     for idx in range(junctions.shape[0]):
+    #         # if no connectivity, just skip it
+    #         if line_map_tmp[idx, :].sum() == 0:
+    #             continue
+    #         # Record the line segment
+    #         else:
+    #             for idx2 in torch.where(line_map_tmp[idx, :] == 1)[0]:
+    #                 p1 = junctions[idx, :]  # HW format
+    #                 p2 = junctions[idx2, :]
+    #                 single_seg = torch.cat([p1[None, ...], p2[None, ...]],
+    #                                             axis=0)
+    #                 output_segments = torch.cat(
+    #                     (output_segments, single_seg[None, ...]), axis=0)
+                    
+    #                 # Update line_map
+    #                 line_map_tmp[idx, idx2] = 0
+    #                 line_map_tmp[idx2, idx] = 0
+    #     profiler.stop()
+    #     profiler.print()
+    #     return output_segments
+
+    def line_map_to_segments(self, junctions, line_map):
+        # profiler = Profiler()
+        # profiler.start()
+        """ Convert a line map to a Nx2x2 list of segments. """
+        junctions = junctions.cpu().numpy() 
+        line_map_tmp = line_map.cpu().numpy()
+
+        output_segments = []
         for idx in range(junctions.shape[0]):
             # if no connectivity, just skip it
-            if line_map_tmp[idx, :].sum() == 0:
+            if np.sum(line_map_tmp[idx, :]) == 0:
                 continue
             # Record the line segment
             else:
-                for idx2 in torch.where(line_map_tmp[idx, :] == 1)[0]:
+                for idx2 in np.where(line_map_tmp[idx, :] == 1)[0]:
                     p1 = junctions[idx, :]  # HW format
                     p2 = junctions[idx2, :]
-                    single_seg = torch.cat([p1[None, ...], p2[None, ...]],
-                                                axis=0)
-                    output_segments = torch.cat(
-                        (output_segments, single_seg[None, ...]), axis=0)
+                    single_seg = np.array([p1,p2])
+                    output_segments.append(single_seg)
                     
                     # Update line_map
                     line_map_tmp[idx, idx2] = 0
                     line_map_tmp[idx2, idx] = 0
-    
+        output_segments = np.array(output_segments)
+        # profiler.stop()
+        # profiler.print()
         return output_segments
     
     def convert_junc_predictions(self, predictions):
         junc_prob = nn.functional.softmax(predictions, dim=1)
         junc_pred = junc_prob[:, :-1, :, :]
 
-        junc_prob = junc_prob.permute(0, 2, 3, 1)[:, :, :, :-1]
-        junc_prob = torch.sum(junc_prob, axis=-1)
+        # junc_prob = junc_prob.permute(0, 2, 3, 1)[:, :, :, :-1]
+        # junc_prob = torch.sum(junc_prob, axis=-1)
         junc_pred = nn.functional.pixel_shuffle(
             junc_pred, self.grid_size).permute(0, 2, 3, 1)
         # junc_pred_nms = self.super_nms(junc_pred, dist_thresh=self.nms_dis, prob_thresh=self.prob_thresh, top_k=self.top_k)
         junc_pred_nms = self.super_nms(junc_pred, self.grid_size, self.detection_thresh, self.topk)
         junc_pred_nms = junc_pred_nms.squeeze()
         return junc_pred_nms
+
+    def convert_junc_predictions_np(self, predictions):
+        """ Convert torch predictions to numpy arrays for evaluation. """
+        # Convert to probability outputs first
+        junc_prob = nn.functional.softmax(predictions, dim=1).cpu()
+        junc_pred = junc_prob[:, :-1, :, :]
+
+        junc_pred_np = nn.functional.pixel_shuffle(
+            junc_pred, self.grid_size).cpu().numpy().transpose(0, 2, 3, 1)
+        junc_pred_np_nms = super_nms(junc_pred_np, self.grid_size, self.detection_thresh, self.topk)
+
+        return junc_pred_np_nms
 
     def super_nms(self, prob_predictions, dist_thresh, prob_thresh=0.01, top_k=0):
         """ Non-maximum suppression adapted from SuperPoint. """
@@ -451,13 +663,14 @@ class SPSOLD2ExtractModel(BaseExtractModel):
 
             # Re-compose the probability map
             output_map = torch.zeros([im_h, im_w]).to(self.device)
-            output_map[keep_points[:, 0].to(torch.int),
-                    keep_points[:, 1].to(torch.int)] = keep_score.squeeze()
+            output_map[keep_points[:, 0].to(int),
+                    keep_points[:, 1].to(int)] = keep_score.squeeze()
 
             output_lst.append(output_map[None, ...])
 
         return torch.cat(output_lst, axis=0)
 
+    
     def nms_fast(self, in_corners, H, W, dist_thresh):
         grid = torch.zeros((H, W), dtype=int).to(self.device) # Track NMS data.
         inds = torch.zeros((H, W), dtype=int).to(self.device) # Store indices of points.

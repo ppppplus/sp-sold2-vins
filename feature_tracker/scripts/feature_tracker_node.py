@@ -71,7 +71,7 @@ def img_callback(img_msg, params_dict):
 
             cur_un_vecline, cur_vecline, ids, cur_un_img = feature_tracker.undistortedLineEndPoints()
 
-            for j in range(len(ids)):
+            for j in range(cur_un_pts.shape[1]):
                 un_pts = Point32()
                 un_pts.x = cur_un_pts[0,j]
                 un_pts.y = cur_un_pts[1,j]
@@ -148,7 +148,7 @@ def img_callback(img_msg, params_dict):
 
 if __name__ == '__main__':
     rospy.init_node('feature_tracker', anonymous=False)
-    yamlPath = rospy.get_param("~config_path", "/home/plus/sp-sold2_vins_ws/src/PL-VINS/config/feature_tracker/sp-sold2_config.yaml")
+    yamlPath = rospy.get_param("~config_path", "/home/nvidia/Work/sp-sold2-vins_ws/src/sp-sold2-vins/config/feature_tracker/sp-sold2_config.yaml")
     with open(yamlPath,'rb') as f:
       params = yaml.load(f, Loader=yaml.FullLoader)
       pl_params = params["pl_feature_cfg"]

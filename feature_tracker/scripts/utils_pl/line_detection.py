@@ -4,6 +4,7 @@ Implementation of the line segment detection module.
 import math
 import numpy as np
 import torch
+from pyinstrument import Profiler
 
 
 class LineSegmentDetectionModule(object):
@@ -79,10 +80,11 @@ class LineSegmentDetectionModule(object):
         return outputs
         
     def detect(self, junctions, heatmap, device=torch.device("cpu")):
+        
         """ Main function performing line segment detection. """
         # Convert inputs to torch tensor
-        junctions = self.convert_inputs(junctions, device=device)
-        heatmap = self.convert_inputs(heatmap, device=device)
+        junctions = self.convert_inputs(junctions, device=device)   # [num_junctions,2]
+        heatmap = self.convert_inputs(heatmap, device=device)       # [480,752]
         
         # Perform the heatmap refinement
         if self.use_heatmap_refinement:
@@ -100,9 +102,10 @@ class LineSegmentDetectionModule(object):
                     self.heatmap_refine_cfg["ratio"],
                     self.heatmap_refine_cfg["valid_thresh"]
                 )
-        
+        # heatmap = heatmap.cpu().numpy()
         # Initialize empty line map
         num_junctions = junctions.shape[0]
+        # line_map_pred = np.zeros((num_junctions, num_junctions)).astype(np.int32)
         line_map_pred = torch.zeros([num_junctions, num_junctions],
                                     device=device, dtype=torch.int32)
         
@@ -110,7 +113,9 @@ class LineSegmentDetectionModule(object):
         if num_junctions < 2:
             return line_map_pred, junctions, heatmap
 
-        # Generate the candidate map
+        # Generate the candidate map, [num_junctions, num_junctions] all 1 upper_traingular_matrix
+        # candidate_map = np.triu(np.ones((num_junctions, num_junctions)).astype(int), 
+        #                         k=1)
         candidate_map = torch.triu(torch.ones(
             [num_junctions, num_junctions], device=device, dtype=torch.int32),
                                    diagonal=1)
@@ -121,12 +126,11 @@ class LineSegmentDetectionModule(object):
         else:
             H, W = heatmap.shape
 
-        # Optionally perform candidate filtering
-        if self.use_candidate_suppression:
-            candidate_map = self.candidate_suppression(junctions,
-                                                       candidate_map)
-
         # Fetch the candidates
+        # candidate_index_map = np.where(candidate_map)
+        # candidate_index_map = np.concatenate([candidate_index_map[0][..., None],
+        #                                  candidate_index_map[1][..., None]],
+        #                                 axis=-1)
         candidate_index_map = torch.where(candidate_map)
         candidate_index_map = torch.cat([candidate_index_map[0][..., None],
                                          candidate_index_map[1][..., None]],
@@ -137,6 +141,7 @@ class LineSegmentDetectionModule(object):
         candidate_junc_end = junctions[candidate_index_map[:, 1], :]
 
         # Get the sampling locations (N x 64)
+        # sampler = self.sampler[np.newaxis, :]
         sampler = self.torch_sampler.to(device)[None, ...]
         cand_samples_h = candidate_junc_start[:, 0:1] * sampler + \
                          candidate_junc_end[:, 0:1] * (1 - sampler)
@@ -144,56 +149,29 @@ class LineSegmentDetectionModule(object):
                          candidate_junc_end[:, 1:2] * (1 - sampler)
         
         # Clip to image boundary
+        # cand_h = np.clip(cand_samples_h, a_min=0, a_max=H-1)
+        # cand_w = np.clip(cand_samples_w, a_min=0, a_max=W-1)
+        # cand_h = torch.tensor(cand_h, dtype=torch.float32, device=device)
+        # cand_w = torch.tensor(cand_w, dtype=torch.float32, device=device)
         cand_h = torch.clamp(cand_samples_h, min=0, max=H-1)
         cand_w = torch.clamp(cand_samples_w, min=0, max=W-1)
+
         
-        # Local maximum search
-        if self.sampling_method == "local_max":
-            # Compute normalized segment lengths
-            segments_length = torch.sqrt(torch.sum(
-                (candidate_junc_start.to(torch.float32) -
-                 candidate_junc_end.to(torch.float32)) ** 2, dim=-1))
-            normalized_seg_length = (segments_length
-                                     / (((H ** 2) + (W ** 2)) ** 0.5))
-            
-            # Perform local max search
-            num_cand = cand_h.shape[0]
-            group_size = 10000
-            if num_cand > group_size:
-                num_iter = math.ceil(num_cand / group_size)
-                sampled_feat_lst = []
-                for iter_idx in range(num_iter):
-                    if not iter_idx == num_iter-1:
-                        cand_h_ = cand_h[iter_idx * group_size:
-                                         (iter_idx+1) * group_size, :]
-                        cand_w_ = cand_w[iter_idx * group_size:
-                                         (iter_idx+1) * group_size, :]
-                        normalized_seg_length_ = normalized_seg_length[
-                            iter_idx * group_size: (iter_idx+1) * group_size]
-                    else:
-                        cand_h_ = cand_h[iter_idx * group_size:, :]
-                        cand_w_ = cand_w[iter_idx * group_size:, :]
-                        normalized_seg_length_ = normalized_seg_length[
-                            iter_idx * group_size:]
-                    sampled_feat_ = self.detect_local_max(
-                        heatmap, cand_h_, cand_w_, H, W,
-                        normalized_seg_length_, device)
-                    sampled_feat_lst.append(sampled_feat_)
-                sampled_feat = torch.cat(sampled_feat_lst, dim=0)
-            else:
-                sampled_feat = self.detect_local_max(
-                    heatmap, cand_h, cand_w, H, W, 
-                    normalized_seg_length, device)
-        # Bilinear sampling
-        elif self.sampling_method == "bilinear":
-            # Perform bilinear sampling
-            sampled_feat = self.detect_bilinear(
-                heatmap, cand_h, cand_w, H, W, device)
-        else:
-            raise ValueError("[Error] Unknown sampling method.")
-     
+        sampled_feat = self.detect_bilinear(
+            heatmap, cand_h, cand_w)
+        # sampled_feat = sampled_feat.cpu().numpy()
         # [Simple threshold detection]
         # detection_results is a mask over all candidates
+        # detection_results = (np.mean(sampled_feat, axis=-1)
+        #                      > self.detect_thresh)
+        
+        # # [Inlier threshold detection]
+        # if self.inlier_thresh > 0.:
+        #     inlier_ratio = np.sum(
+        #         sampled_feat > self.detect_thresh,
+        #         axis=-1) / self.num_samples
+        #     detection_results_inlier = inlier_ratio >= self.inlier_thresh
+        #     detection_results = detection_results * detection_results_inlier
         detection_results = (torch.mean(sampled_feat, dim=-1)
                              > self.detect_thresh)
         
@@ -212,11 +190,6 @@ class LineSegmentDetectionModule(object):
         line_map_pred[detected_junc_indexes[:, 1],
                       detected_junc_indexes[:, 0]] = 1
         
-        # Perform junction refinement
-        if self.use_junction_refinement and len(detected_junc_indexes) > 0:
-            junctions, line_map_pred = self.refine_junction_perturb(
-                junctions, line_map_pred, heatmap, H, W, device)
-
         return line_map_pred, junctions, heatmap
     
     def refine_heatmap(self, heatmap, ratio=0.2, valid_thresh=1e-2):
@@ -266,13 +239,15 @@ class LineSegmentDetectionModule(object):
 
     def candidate_suppression(self, junctions, candidate_map):
         """ Suppress overlapping long lines in the candidate segments. """
+        # profiler = Profiler()
+        # profiler.start()
         # Define the distance tolerance
         dist_tolerance = self.nms_dist_tolerance
 
         # Compute distance between junction pairs
         # (num_junc x 1 x 2) - (1 x num_junc x 2) => num_junc x num_junc map
         line_dist_map = torch.sum((torch.unsqueeze(junctions, dim=1)
-                                  - junctions[None, ...]) ** 2, dim=-1) ** 0.5
+                                    - junctions[None, ...]) ** 2, dim=-1) ** 0.5
 
         # Fetch all the "detected lines"
         seg_indexes = torch.where(torch.triu(candidate_map, diagonal=1))
@@ -315,9 +290,63 @@ class LineSegmentDetectionModule(object):
         final_mask = junc_counts > 0
         candidate_map[start_point_idxs[final_mask],
                       end_point_idxs[final_mask]] = 0
-            
+        # profiler.stop()
+        # profiler.print()
         return candidate_map
     
+    def my_candidate_suppression(self, junctions, candidate_map):
+        """ Suppress overlapping long lines in the candidate segments. """
+        # Define the distance tolerance
+        dist_tolerance = self.nms_dist_tolerance
+
+        # Compute distance between junction pairs
+        # (num_junc x 1 x 2) - (1 x num_junc x 2) => num_junc x num_junc map <line_dist_map>
+        line_dist_map = torch.sum((torch.unsqueeze(junctions, dim=1)
+                                    - junctions[None, ...]) ** 2, dim=-1) ** 0.5
+
+        # Fetch all the "detected lines"
+        seg_indexes = torch.where(torch.triu(candidate_map, diagonal=1))
+        start_point_idxs = seg_indexes[0]
+        end_point_idxs = seg_indexes[1]
+        start_points = junctions[start_point_idxs, :]
+        end_points = junctions[end_point_idxs, :]
+
+        # Fetch corresponding entries
+        line_dists = line_dist_map[start_point_idxs, end_point_idxs]
+
+        # Check whether they are on the line    dir_vecs存储了所有可能线段的矢量 [N*2】
+        dir_vecs = ((end_points - start_points)
+                    / torch.norm(end_points - start_points,
+                                 dim=-1)[..., None])
+        # Get the orthogonal distance
+        cand_vecs = junctions[None, ...] - start_points.unsqueeze(dim=1)
+        cand_vecs_norm = torch.norm(cand_vecs, dim=-1)
+        # Check whether they are projected directly onto the segment
+        inner_prod = torch.einsum('bij,bjk->bik', cand_vecs, dir_vecs[..., None])
+        proj = ( inner_prod / line_dists[..., None, None]) # 投影
+        # proj is num_segs x num_junction x 1
+        proj_mask = (proj >=0) * (proj <= 1)
+        cand_angles = torch.acos(
+            inner_prod
+            / cand_vecs_norm[..., None])
+        cand_dists = cand_vecs_norm[..., None] * torch.sin(cand_angles)
+        junc_dist_mask = cand_dists <= dist_tolerance
+        junc_mask = junc_dist_mask * proj_mask
+
+        # Minus starting points
+        num_segs = start_point_idxs.shape[0]
+        junc_counts = torch.sum(junc_mask, dim=[1, 2])
+        junc_counts -= junc_mask[..., 0][torch.arange(0, num_segs),
+                                         start_point_idxs].to(torch.int)
+        junc_counts -= junc_mask[..., 0][torch.arange(0, num_segs),
+                                         end_point_idxs].to(torch.int)
+        
+        # Get the invalid candidate mask
+        final_mask = junc_counts > 0
+        candidate_map[start_point_idxs[final_mask],
+                      end_point_idxs[final_mask]] = 0
+        return candidate_map
+
     def refine_junction_perturb(self, junctions, line_map_pred,
                                 heatmap, H, W, device):
         """ Refine the line endpoints in a similar way as in LSD. """
@@ -427,7 +456,24 @@ class LineSegmentDetectionModule(object):
 
         return line_map
 
-    def detect_bilinear(self, heatmap, cand_h, cand_w, H, W, device):
+    def detect_bilinear_np(self, heatmap, cand_h, cand_w):
+        """ Detection by bilinear sampling. """
+        # Get the floor and ceiling locations
+        cand_h_floor = np.floor(cand_h).astype(np.long)
+        cand_h_ceil = np.ceil(cand_h).astype(np.long)
+        cand_w_floor = np.floor(cand_w).astype(np.long)
+        cand_w_ceil = np.ceil(cand_w).astype(np.long)
+
+        # Perform the bilinear sampling
+        cand_samples_feat = (
+            heatmap[cand_h_floor, cand_w_floor]*(cand_h_ceil - cand_h)*(cand_w_ceil - cand_w) +
+            heatmap[cand_h_floor, cand_w_ceil]*(cand_h_ceil - cand_h)*(cand_w - cand_w_floor) +
+            heatmap[cand_h_ceil, cand_w_floor]*(cand_h - cand_h_floor)*(cand_w_ceil - cand_w) +
+            heatmap[cand_h_ceil, cand_w_ceil]*(cand_h - cand_h_floor)*(cand_w - cand_w_floor))
+        
+        return cand_samples_feat
+    
+    def detect_bilinear(self, heatmap, cand_h, cand_w):
         """ Detection by bilinear sampling. """
         # Get the floor and ceiling locations
         cand_h_floor = torch.floor(cand_h).to(torch.long)

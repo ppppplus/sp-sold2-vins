@@ -330,8 +330,8 @@ class NnmPointMatchModel(BaseMatchModel):
                 a match of two descriptors, d_i in image 1 and d_j' in image 2:
                 [d_i index, d_j' index, match_score]^T
     """
-    desc1 = data["descriptors0"].cpu().numpy()
-    desc2 = data["descriptors1"].cpu().numpy()
+    desc1 = data["descriptors0"]
+    desc2 = data["descriptors1"]
     assert desc1.shape[0] == desc2.shape[0]
     if desc1.shape[1] == 0 or desc2.shape[1] == 0:
       return np.zeros((3, 0))

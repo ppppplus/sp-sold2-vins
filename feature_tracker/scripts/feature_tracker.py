@@ -41,8 +41,10 @@ class PLFeatureTracker:
 				'keyPoint': np.zeros((3,0)),
 				'vecline': np.zeros((0,2,2)),
 				'lineID': None,
-				'pointdescriptor': torch.zeros((128,0)).to(self.device),
+				# 'pointdescriptor': torch.zeros((128,0)).to(self.device),
 				'linedescriptor': torch.zeros((128,0)).to(self.device),
+				'pointdescriptor': np.zeros((128,0)),
+				# 'linedescriptor': np.zeros((128,0)),
 				'valid_points': None,	# 存储哪些线采样点为有效的
 				'image': None,
 				}
@@ -52,8 +54,10 @@ class PLFeatureTracker:
 				'keyPoint': np.zeros((3,0)),
 				'vecline': np.zeros((0,2,2)),
 				'lineID': None,
-				'pointdescriptor': torch.zeros((128,0)).to(self.device),
+				# 'pointdescriptor': torch.zeros((128,0)).to(self.device),
 				'linedescriptor': torch.zeros((128,0)).to(self.device),
+				'pointdescriptor': np.zeros((128,0)),
+				# 'linedescriptor': np.zeros((128,0)),
 				'valid_points': None,	# 存储哪些线采样点为有效的
 				'image': None,
 				}
@@ -204,8 +208,10 @@ class PLFeatureTracker:
 			vecpoint_tracked = np.zeros((3,0))
 			pointID_new = []
 			pointID_tracked = []
-			pointdescr_new = torch.zeros((128,0)).to(self.device)
-			pointdescr_tracked = torch.zeros((128,0)).to(self.device)
+			# pointdescr_new = torch.zeros((128,0)).to(self.device)
+			# pointdescr_tracked = torch.zeros((128,0)).to(self.device)
+			pointdescr_new = np.zeros((128,0))
+			pointdescr_tracked = np.zeros((128,0))
 
 			for i in range(num_points):
 				if self.forwframe_['PointID'][i] == -1 :
@@ -213,11 +219,15 @@ class PLFeatureTracker:
 					self.all_pointfeature_cnt = self.all_pointfeature_cnt+1
 					vecpoint_new = np.append(vecpoint_new, self.forwframe_['keyPoint'][:,i:i+1], axis=1)
 					pointID_new.append(self.forwframe_['PointID'][i])
-					pointdescr_new = torch.cat((pointdescr_new, self.forwframe_['pointdescriptor'][:,i:i+1]), dim=1)
+					# pointdescr_new = torch.cat((pointdescr_new, self.forwframe_['pointdescriptor'][:,i:i+1]), dim=1)
+					pointdescr_new = np.append(pointdescr_new, self.forwframe_['pointdescriptor'][:,i:i+1], axis=1)
+
 				else:
 					vecpoint_tracked = np.append(vecpoint_tracked, self.forwframe_['keyPoint'][:,i:i+1], axis=1)
 					pointID_tracked.append(self.forwframe_['PointID'][i])
-					pointdescr_tracked = torch.cat((pointdescr_tracked, self.forwframe_['pointdescriptor'][:,i:i+1]), dim=1)
+					# pointdescr_tracked = torch.cat((pointdescr_tracked, self.forwframe_['pointdescriptor'][:,i:i+1]), dim=1)
+					pointdescr_tracked = np.append(pointdescr_tracked, self.forwframe_['pointdescriptor'][:,i:i+1], axis=1)
+
 
 			########### 跟踪的点特征少于阈值了，那就补充新的点特征 ###############
 
@@ -227,12 +237,16 @@ class PLFeatureTracker:
 					for k in range(diff_n):
 						vecpoint_tracked = np.append(vecpoint_tracked, vecpoint_new[:,k:k+1], axis=1)
 						pointID_tracked.append(pointID_new[k])
-						pointdescr_tracked = torch.cat((pointdescr_tracked, pointdescr_new[:,k:k+1]), dim=1)
+						# pointdescr_tracked = torch.cat((pointdescr_tracked, pointdescr_new[:,k:k+1]), dim=1)
+						pointdescr_tracked = np.append(pointdescr_tracked, pointdescr_new[:,k:k+1], axis=1)
+
 				else:
 					for k in range(vecpoint_new.shape[1]):
 						vecpoint_tracked = np.append(vecpoint_tracked, vecpoint_new[:,k:k+1], axis=1)
 						pointID_tracked.append(pointID_new[k])
-						pointdescr_tracked = torch.cat((pointdescr_tracked, pointdescr_new[:,k:k+1]), dim=1)
+						# pointdescr_tracked = torch.cat((pointdescr_tracked, pointdescr_new[:,k:k+1]), dim=1)
+						pointdescr_tracked = np.append(pointdescr_tracked, pointdescr_new[:,k:k+1], axis=1)
+
 			
 			self.forwframe_['keyPoint'] = vecpoint_tracked
 			self.forwframe_['PointID'] = pointID_tracked
@@ -265,6 +279,8 @@ class PLFeatureTracker:
 				lineID_tracked = []
 				linedescr_new = torch.zeros((128,0,self.num_samples)).to(self.device)
 				linedescr_tracked = torch.zeros((128,0,self.num_samples)).to(self.device)
+				# linedescr_new = np.zeros((128,0,self.num_samples))
+				# linedescr_tracked = np.zeros((128,0,self.num_samples))
 
 				for i in range(num_lines):
 					if self.forwframe_['lineID'][i] == -1 :	# -1表示当前ID对应的line没有track到
@@ -273,12 +289,16 @@ class PLFeatureTracker:
 						vecline_new = np.append(vecline_new, self.forwframe_['vecline'][i:i+1,...], axis=0)	# 取出没有跟踪到的线信息并放入下一帧
 						lineID_new.append(self.forwframe_['lineID'][i])
 						linedescr_new = torch.cat((linedescr_new, self.forwframe_['linedescriptor'][:,i:i+1,:]), dim=1)
+						# linedescr_new = np.append(linedescr_new, self.forwframe_['linedescriptor'][:,i:i+1,:], axis=1)
+
 						validpoints_new = np.append(validpoints_new, self.forwframe_['valid_points'][i:i+1,:], axis=0)
 					else:
 						# 当前line已被track
 						lineID_tracked.append(self.forwframe_['lineID'][i])
 						vecline_tracked = np.append(vecline_tracked, self.forwframe_['vecline'][i:i+1,...], axis=0)
 						linedescr_tracked = torch.cat((linedescr_tracked, self.forwframe_['linedescriptor'][:,i:i+1,:]), dim=1)
+						# linedescr_tracked = np.append(linedescr_tracked, self.forwframe_['linedescriptor'][:,i:i+1,:], axis=1)
+
 						validpoints_tracked = np.append(validpoints_tracked, self.forwframe_['valid_points'][i:i+1,:], axis=0)
 
 
@@ -291,12 +311,16 @@ class PLFeatureTracker:
 							vecline_tracked = np.append(vecline_tracked, vecline_new[k:k+1,:], axis=0)
 							lineID_tracked.append(lineID_new[k])
 							linedescr_tracked = torch.cat((linedescr_tracked, linedescr_new[:,k:k+1,:]), dim=1)
+							# linedescr_tracked = np.append(linedescr_tracked, linedescr_new[:,k:k+1,:], axis=1)
+
 							validpoints_tracked = np.append(validpoints_tracked, validpoints_new[k:k+1,:],axis=0)
 					else:
 						for k in range(vecline_new.shape[0]):
 							vecline_tracked = np.append(vecline_tracked, vecline_new[k:k+1,:], axis=0)
 							lineID_tracked.append(lineID_new[k])
 							linedescr_tracked = torch.cat((linedescr_tracked, linedescr_new[:,k:k+1,:]), dim=1)
+							# linedescr_tracked = np.append(linedescr_tracked, linedescr_new[:,k:k+1,:], axis=1)
+
 							validpoints_tracked = np.append(validpoints_tracked, validpoints_new[k:k+1,:],axis=0)
 							
 				self.forwframe_['vecline'] = vecline_tracked
@@ -309,9 +333,9 @@ class PLFeatureTracker:
 				'keyPoint': self.forwframe_["keyPoint"].copy(),
 				'vecline': self.forwframe_["vecline"].copy(),
 				'lineID': self.forwframe_["lineID"].copy(),
-				'pointdescriptor': self.forwframe_["pointdescriptor"].clone(),
+				'pointdescriptor': self.forwframe_["pointdescriptor"].copy(),
 				'linedescriptor':  self.forwframe_["linedescriptor"].clone(),
 				'valid_points': self.forwframe_["valid_points"].copy(),
 				'image': self.forwframe_["image"].copy(),
 				}
-
+		# self.curframe_ = copy.deepcopy(self.forwframe_)
