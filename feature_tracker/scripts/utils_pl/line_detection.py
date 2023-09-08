@@ -149,29 +149,12 @@ class LineSegmentDetectionModule(object):
                          candidate_junc_end[:, 1:2] * (1 - sampler)
         
         # Clip to image boundary
-        # cand_h = np.clip(cand_samples_h, a_min=0, a_max=H-1)
-        # cand_w = np.clip(cand_samples_w, a_min=0, a_max=W-1)
-        # cand_h = torch.tensor(cand_h, dtype=torch.float32, device=device)
-        # cand_w = torch.tensor(cand_w, dtype=torch.float32, device=device)
         cand_h = torch.clamp(cand_samples_h, min=0, max=H-1)
         cand_w = torch.clamp(cand_samples_w, min=0, max=W-1)
 
         
         sampled_feat = self.detect_bilinear(
             heatmap, cand_h, cand_w)
-        # sampled_feat = sampled_feat.cpu().numpy()
-        # [Simple threshold detection]
-        # detection_results is a mask over all candidates
-        # detection_results = (np.mean(sampled_feat, axis=-1)
-        #                      > self.detect_thresh)
-        
-        # # [Inlier threshold detection]
-        # if self.inlier_thresh > 0.:
-        #     inlier_ratio = np.sum(
-        #         sampled_feat > self.detect_thresh,
-        #         axis=-1) / self.num_samples
-        #     detection_results_inlier = inlier_ratio >= self.inlier_thresh
-        #     detection_results = detection_results * detection_results_inlier
         detection_results = (torch.mean(sampled_feat, dim=-1)
                              > self.detect_thresh)
         

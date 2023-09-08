@@ -212,7 +212,7 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         coarse_desc  = outputs["descriptors"]
         ########################################################
         pstime = time()
-        pts, pts_desc = self.reprocess_pts(junctions, coarse_desc) # [3, n_pts]; [128, n_pts]
+        pts, pts_desc, _ = self.reprocess_pts_np(junctions, coarse_desc) # [3, n_pts]; [128, n_pts]
         petime = time()
         print("pt extract time: ", petime-pstime)
         lstime = time()
@@ -226,8 +226,6 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         return pts, pts_desc, lines, lines_desc, valid_points
     
     def reprocess_pts_np(self, junctions, coarse_desc):
-        profiler = Profiler()
-        profiler.start()
         semi = junctions.data.cpu().numpy().squeeze()
         # --- Process points.
         dense = np.exp(semi) # Softmax.
@@ -275,8 +273,6 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         desc = torch.nn.functional.grid_sample(coarse_desc, samp_pts)
         desc = desc.data.cpu().numpy().reshape(D, -1)
         desc /= np.linalg.norm(desc, axis=0)[np.newaxis, :]
-        profiler.stop()
-        profiler.print()
         return pts, desc, heatmap
     
     def nms_fast_np(self, in_corners, H, W, dist_thresh):
@@ -394,22 +390,25 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         ### junctions: 1,65,Hc,Wc
         ### heatmap: 1,2,H,W
         ### coarse_desc: 1,128,Hc,Wc
-        profiler = Profiler()
-        profiler.start()
-        # semi = junctions.squeeze()
-        scores = torch.nn.functional.softmax(junctions, dim=1)[:, :-1, ...]
+        time1 = time()
+        semi = junctions.squeeze()
+        dense = torch.exp(semi) # Softmax.
+        dense = dense / (torch.sum(dense, axis=0)+.00001) # Should sum to 1.
+        # Remove dustbin.
+        nodust = dense[:-1, :, :]
         # Reshape to get full resolution heatmap.
         
-        scores = scores.permute(0, 2, 3, 1)    # Hc*Wc*grid_size^2
-        heatmap = torch.reshape(scores, [1, self.Hc, self.Wc, self.grid_size, self.grid_size])
-        heatmap = heatmap.permute(0, 1, 3, 2, 4)
-        heatmap = torch.reshape(heatmap, [1, self.Hc*self.grid_size, self.Wc*self.grid_size])
-        heatmap = self.simple_nms(heatmap, self.nms_dist).squeeze()
+        nodust = nodust.permute(1, 2, 0)
+        heatmap = torch.reshape(nodust, [self.Hc, self.Wc, self.grid_size, self.grid_size])
+        heatmap = heatmap.permute(0, 2, 1, 3)
+        heatmap = torch.reshape(heatmap, [self.Hc*self.grid_size, self.Wc*self.grid_size])
         xs, ys = torch.where(heatmap >= self.conf_thresh) # Confidence threshold.
         pts = torch.zeros((3, len(xs))).to(self.device) # Populate point data sized 3xN.
         pts[0, :] = ys
         pts[1, :] = xs
         # pts[2, :] = heatmap[xs, ys]
+        print("time1: ", time()-time1)
+        pts, _ = self.nms_fast(pts, self.H, self.W, dist_thresh=self.nms_dist) # Apply NMS.
         inds = torch.argsort(pts[2,:])
         inds = torch.flip(inds, dims=[0])
         pts = pts[:,inds] # Sort by confidence.
@@ -421,6 +420,7 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         pts = pts[:, ~toremove]
         # --- Process descriptor.
         D = coarse_desc.shape[1]
+        print("time2: ", time()-time1)
         if pts.shape[1] == 0:
             desc = torch.zeros((D, 0))
         else:
@@ -437,8 +437,7 @@ class SPSOLD2ExtractModel(BaseExtractModel):
             desc /= torch.norm(desc, dim=0)
             # desc = desc.reshape(D, -1)
             # desc = torch.norm(desc)[None]
-        profiler.stop()
-        profiler.print()
+        print("time3: ", time()-time1)
         return pts, desc
     
     def reprocess_lines(self, junctions, heatmap, coarse_desc):
@@ -712,7 +711,7 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         out_inds = inds1[inds_keep[inds2]]
         return out, out_inds
 
-    def simple_nms(self, heatmap, nms_radius: int):
+    def simple_nms(scores, nms_radius: int):
         """ Fast Non-maximum suppression to remove nearby points """
         assert(nms_radius >= 0)
 
@@ -720,14 +719,14 @@ class SPSOLD2ExtractModel(BaseExtractModel):
             return torch.nn.functional.max_pool2d(
                 x, kernel_size=nms_radius*2+1, stride=1, padding=nms_radius)
 
-        zeros = torch.zeros_like(heatmap)
-        max_mask = heatmap == max_pool(heatmap)
+        zeros = torch.zeros_like(scores)
+        max_mask = scores == max_pool(scores)
         for _ in range(2):
             supp_mask = max_pool(max_mask.float()) > 0
-            supp_scores = torch.where(supp_mask, zeros, heatmap)
+            supp_scores = torch.where(supp_mask, zeros, scores)
             new_max_mask = supp_scores == max_pool(supp_scores)
             max_mask = max_mask | (new_max_mask & (~supp_mask))
-        return torch.where(max_mask, heatmap, zeros)
+        return torch.where(max_mask, scores, zeros)
         
 def weight_init(m):
     """ Weight initialization function. """

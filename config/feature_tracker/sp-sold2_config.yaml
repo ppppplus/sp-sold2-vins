@@ -1,10 +1,10 @@
 
 image_topic: "/cam0/image_raw"
 pl_feature_cfg:
-        H: 480 # Input image height
-        W: 752 # Input image width
-        # H: 496 #317
-        # W: 744 #474
+        # H: 480 # Input image height
+        # W: 752 # Input image width
+        H: 496 #317
+        W: 744 #474
         min_cnt: 150
 
         extract_method: "sp-sold2"    # supported: [superpoint]
@@ -41,10 +41,10 @@ pl_feature_cfg:
                 nms_dist: 4
                 nn_thresh: 0.7
                 border_remove: 4 # Remove points this close to the border.
-                H: 480
-                W: 752
-                # H: 496 #317
-                # W: 744 #474
+                # H: 480
+                # W: 752
+                H: 496 #317
+                W: 744 #474
                 ########### line extraction ##########
                 num_samples: 5
                 min_dist_pts: 8
