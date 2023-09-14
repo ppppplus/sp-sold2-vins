@@ -37,7 +37,7 @@ pl_feature_cfg:
                 # Threshold of heatmap detection
                 prob_thresh: 0.5
                 ########### point extraction ##########
-                conf_thresh: 0.1 # Detector confidence threshold
+                conf_thresh: 0.005 #0.1 # Detector confidence threshold
                 nms_dist: 4
                 nn_thresh: 0.7
                 border_remove: 4 # Remove points this close to the border.
