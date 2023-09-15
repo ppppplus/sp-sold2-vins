@@ -145,6 +145,7 @@ class SPSOLD2ExtractModel(BaseExtractModel):
     def _init(self, params):
         self.params = params
         self.grid_size = params["grid_size"]
+        self.pad_size = params["pad_size"]
         self.H = params["H"]
         self.W = params["W"]
         self.Hc = self.H//self.grid_size
@@ -666,15 +667,66 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         profiler.start()
         """ Convert torch predictions to numpy arrays for evaluation. """
         # Convert to probability outputs first
-        junc_prob = nn.functional.softmax(predictions, dim=1).cpu()
-        junc_pred = junc_prob[:, :-1, :, :]
+        # junc_prob = nn.functional.softmax(predictions, dim=1).cpu()
+        junc_no_dust = predictions.cpu().numpy()
+        junc_exp = np.exp(junc_no_dust)
 
-        junc_pred_np = nn.functional.pixel_shuffle(
-            junc_pred, self.grid_size).cpu().numpy().transpose(0, 2, 3, 1)
-        junc_pred_np_nms = self.super_nms(junc_pred_np, self.grid_size, self.detection_thresh, self.topk)
+        # junc_pred_np = nn.functional.pixel_shuffle(
+        #     junc_pred, self.grid_size).cpu().numpy().transpose(0, 2, 3, 1)
+        junc_pred_np_nms = self.softmax_nms(junc_exp, self.pad_size, self.detection_thresh, self.topk)
         profiler.stop()
         profiler.print()
         return junc_pred_np_nms
+    
+    def softmax_nms(self, prob_map, pad_size, prob_thresh, top_k):
+        """
+        softmax+nms, only do softmax on filtered points
+        """
+        for i in range(prob_map.shape[0]):
+            prob_pred = prob_map[i, ...]
+            coord = np.where(prob_pred >= prob_thresh)
+            points = np.concatenate((coord[0][..., None], coord[1][..., None]),
+                                    axis=1)
+            prob_score = prob_pred[points[:, 0], points[:, 1]]
+            xy_points = np.concatenate((coord[1][..., None], coord[0][..., None],
+                                        prob_score), axis=1).T
+            grid = np.zeros((self.Hc, self.Wc), dtype=int) # Track NMS data.
+            inds = np.zeros((self.Hc, self.Wc), dtype=int) # Store indices of points.
+            # Sort by confidence and round to nearest int.
+            inds1 = np.argsort(-xy_points[2,:])
+            corners = xy_points[:,inds1]
+            rcorners = np.round(corners[:2,:]) # Rounded corners.
+            if rcorners.shape[1] == 0:
+                return np.zeros((3,0)),
+            if rcorners.shape[1] == 1:
+                out = np.vstack((rcorners, prob_map[2])).reshape(3,1)
+                return out
+            # Initialize the grid.
+            for i in range(rcorners.shape[0]):
+                grid[rcorners[1,i], rcorners[0,i]] = 1
+                inds[rcorners[1,i], rcorners[0,i]] = i
+            # Pad the border of the grid, so that we can NMS points near the border.
+            pad = pad_size
+            grid = np.pad(grid, pad_width=pad, mode='constant', value=0)
+            # Iterate through points, highest to lowest conf, suppress neighborhood.
+            count = 0
+            for i, rc in enumerate(rcorners.T):
+                # Account for top and left padding.
+                pt = (rc[0]+pad, rc[1]+pad)
+                if grid[pt[1], pt[0]] == 1: # If not yet suppressed.
+                    grid[pt[1]-pad:pt[1]+pad+1, pt[0]-pad:pt[0]+pad+1] = 0
+                    grid[pt[1], pt[0]] = -1
+                    count += 1
+            keepy, keepx = torch.where(grid==-1)
+            keepy, keepx = keepy - pad, keepx - pad
+            inds_keep = inds[keepy, keepx]
+            out = corners[:, inds_keep]
+            values = out[-1, :]
+            inds2 = torch.argsort(-values)
+            out = out[:, inds2]
+            
+
+
 
     def super_nms(self, prob_predictions, dist_thresh, prob_thresh=0.01, top_k=0):
         """ Non-maximum suppression adapted from SuperPoint. """

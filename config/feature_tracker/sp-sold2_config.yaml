@@ -31,6 +31,7 @@ pl_feature_cfg:
                 descriptor_decoder_cfg:
                 # Shared configurations
                 grid_size: 8
+                pad_size: 1
                 keep_border_valid: True
                 # Threshold of junction detection
                 detection_thresh: 0.0153846 # 1/65
