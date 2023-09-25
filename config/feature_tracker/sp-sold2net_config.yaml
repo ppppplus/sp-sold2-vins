@@ -1,0 +1,55 @@
+
+image_topic: "/cam0/image_raw"
+model_cfg:
+   H: 480 #317
+   W: 752 #474
+   ckpt_path: "/home/nvidia/Work/sp-sold2-vins_ws/src/sp-sold2-vins/feature_tracker/scripts/utils_pl/pretrained_models/sp-sold2.tar"
+   model_name: "sp-sold2"
+   model_architecture: "simple"
+   # Backbone related config
+   backbone: "superpoint"
+   backbone_cfg:
+   input_channel: 1 # Use RGB images or grayscale images.
+   depth: 4
+   num_stacks: 2
+   num_blocks: 1
+   num_classes: 5
+   # Junction decoder related config
+   junction_decoder: "superpoint_decoder"
+   junc_decoder_cfg:
+   # Heatmap decoder related config
+   heatmap_decoder: "pixel_shuffle"
+   heatmap_decoder_cfg:
+   # Descriptor decoder related config
+   descriptor_decoder: "superpoint_descriptor"
+   descriptor_decoder_cfg:
+   # Shared configurations
+   grid_size: 8
+   pad_size: 1
+   keep_border_valid: True
+   # Threshold of junction detection
+   detection_thresh: 0.0153846 # 1/65
+   # Threshold of heatmap detection
+   prob_thresh: 0.5
+   heatmap_refine_cfg: 
+            mode: "global"
+            ratio: 0.2
+            valid_thresh: 0.001
+            num_blocks: 20
+            overlap_ratio: 0.5
+
+camera_cfg:
+   model_type: PINHOLE
+   camera_name: camera
+   image_width: 752
+   image_height: 480
+   distortion_parameters:
+      k1: -2.917e-01
+      k2: 8.228e-02
+      p1: 5.333e-05
+      p2: -1.578e-04
+   projection_parameters:
+      fx: 4.616e+02
+      fy: 4.603e+02
+      cx: 3.630e+02
+      cy: 2.481e+02

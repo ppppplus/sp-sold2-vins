@@ -26,44 +26,71 @@ print(img0.shape)
 # img1 = cv2.imread('/home/plus/Work/plvins_ws/src/PL-VINS/feature_tracker/scripts/img/img1.JPG', 0)
 
 # img0 = (img0 / 255.).astype(float)
-pts, pts_desc, lines, lines_desc, valid_points = my_plextract_model.extract(img0)
-print(pts.shape, lines.shape)
+for i in range(10):
+    my_plextract_model.extract(img0)
+    # print(pts.shape, lines.shape)
 #%%
-from utils_pl.vision_utils import plot_images, plot_junctions, plot_line_segments, plot_lines
-import numpy as np
-img_pts = plot_junctions(img0, np.flip(pts[0:2]), junc_size=2)
-plot_images([img0, img0], ["img_lines", "img_lines"])
-plot_lines([lines[:, :, ::-1], lines[:, :, ::-1]], ps=3, lw=2)
-plot_images([img_pts], ["img_pts"])
+
+# import numpy as np
+
+# # 创建示例原始数组
+# original_array = np.random.rand(5, 5, 5)  # 示例原始数组
+
+# # 创建示例索引数组，使其形状与原始数组相同
+# index_array = np.empty_like(original_array, dtype=np.int) 
+
+# # 使用循环来构建索引数组
+# for i in range(5):
+#     for j in range(6):
+#         for k in range(9):
+#             # 在索引数组的每个位置存储一个索引值
+#             index_array[i, j, k] = i  # 这里使用 i 作为示例索引
+
+# # 使用索引数组获取对应的值
+# selected_values = original_array[index_array]
+
+# # selected_values 包含了根据索引数组取出的值
+
+# # 打印获取的值的形状
+# print(selected_values.shape)
+# #%%
+# from utils_pl.vision_utils import plot_images, plot_junctions, plot_line_segments, plot_lines
+# import numpy as np
+# img_pts = plot_junctions(img0, np.flip(pts[0:2]), junc_size=2)
+# plot_images([img0, img0], ["img_lines", "img_lines"])
+# plot_lines([lines[:, :, ::-1], lines[:, :, ::-1]], ps=3, lw=2)
+# plot_images([img_pts], ["img_pts"])
 # plot_images([img_pts, img_lines], ["img_pts", "img_lines"])
-# import torch
-# def max_pool(x, nms_radius):
-#             return torch.nn.functional.max_pool2d(
-#                 x, kernel_size=nms_radius*2+1, stride=1, padding=nms_radius)
-# def simple_nms(heatmap, nms_radius: int):
-#         """ Fast Non-maximum suppression to remove nearby points """
-#         assert(nms_radius >= 0)
-
+#%%
+import torch
+def max_pool(x, nms_radius):
+            return torch.nn.functional.max_pool2d(
+                x, kernel_size=nms_radius*2+1, stride=1, padding=nms_radius)
+def simple_nms(heatmap, nms_radius: int):
+        """ Fast Non-maximum suppression to remove nearby points """
+        assert(nms_radius >= 0)
+        zeros = torch.zeros_like(heatmap)
+        max_mask = heatmap == max_pool(heatmap, nms_radius)
+        # print(max_pool(heatm?ap, nms_radius))
         
-
-#         zeros = torch.zeros_like(heatmap)
-#         max_mask = heatmap == max_pool(heatmap, nms_radius)
-#         print(max_pool(heatmap, nms_radius))
-        
-#         for _ in range(1):
-#             print("max_mask", max_mask)
-#             supp_mask = max_pool(max_mask.float(), nms_radius) > 0
-#             print(supp_mask)
-#             supp_scores = torch.where(supp_mask, zeros, heatmap)
-#             print("score",  supp_scores)
-#             new_max_mask = supp_scores == max_pool(supp_scores, nms_radius)
-#             print(max_pool(supp_scores, nms_radius))
-#             print(new_max_mask)
-#             max_mask = max_mask | (new_max_mask & (~supp_mask))
-#         return torch.where(max_mask, heatmap, zeros)
-# a = torch.tensor([[1,2,3],[4,5,6],[7,8,9]]).float()
-# b = simple_nms(a[None,...],1)
-# print(b)
+        for _ in range(1):
+            # print("max_mask", max_mask)
+            supp_mask = max_pool(max_mask.float(), nms_radius) > 0
+            # print(supp_mask)
+            supp_scores = torch.where(supp_mask, zeros, heatmap)
+            # print("score",  supp_scores)
+            new_max_mask = supp_scores == max_pool(supp_scores, nms_radius)
+            # print(max_pool(supp_scores, nms_radius))
+            # print(new_max_mask)
+            max_mask = max_mask | (new_max_mask & (~supp_mask))
+        return torch.where(max_mask, heatmap, zeros)
+# a = torch.arange(1,82)
+# a = a.reshape([9,9]).float()
+a = torch.randint(0,200,(9,9)).float()
+# a = torch.tensor([[1,2,3,4,5,6],[7,8,9,10,11,12],[13,14,15,16,17,18]]).float()
+b = simple_nms(a[None,...],1)
+print(a)
+print(b)
 # #%%
 # import numpy as np
 # from utils_pl.vision_utils import plot_images, plot_junctions, plot_line_segments, plot_lines

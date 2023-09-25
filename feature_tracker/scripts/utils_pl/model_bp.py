@@ -211,10 +211,10 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         heatmap = outputs["heatmap"]
         coarse_desc  = outputs["descriptors"]
         ########################################################
-        pstime = time()
-        pts, pts_desc, _ = self.reprocess_pts_np(junctions, coarse_desc) # [3, n_pts]; [128, n_pts]
-        petime = time()
-        print("pt extract time: ", petime-pstime)
+        # pstime = time()
+        # pts, pts_desc, _ = self.reprocess_pts_np(junctions, coarse_desc) # [3, n_pts]; [128, n_pts]
+        # petime = time()
+        # print("pt extract time: ", petime-pstime)
         lstime = time()
         lines, lines_desc, valid_points = self.reprocess_lines_np(junctions, heatmap, coarse_desc)
         letime = time()
@@ -353,7 +353,7 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         #                             junctions[1][..., None]], axis=-1)
         junctions = np.where(junc_np.squeeze())
         junctions = np.concatenate(
-            [junctions[0][..., None], junctions[1][..., None]], axis=-1)
+            [junctions[0][..., None], junctions[1][..., None]], axis=-1)     
         if heatmap.shape[1] == 2:
             # Convert to single channel directly from here
             heatmap = nn.functional.softmax(heatmap, dim=1)[:, 1:, :, :]
@@ -624,7 +624,7 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         junc_pred = junc_prob[:, :-1, :, :]
 
         junc_pred_np = nn.functional.pixel_shuffle(
-            junc_pred, self.grid_size).cpu().numpy().transpose(0, 2, 3, 1)
+            junc_pred, self.grid_size).cpu().numpy().transpose(0, 2, 3, 1)  # 1,64,Hc,Wc上采样为1,Hc,Wc,8*64
         junc_pred_np_nms = super_nms(junc_pred_np, self.grid_size, self.detection_thresh, self.topk)
 
         return junc_pred_np_nms

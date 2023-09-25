@@ -1,5 +1,5 @@
 import numpy as np
-from utils_pl.model import SPSOLD2ExtractModel
+from utils_pl.model_bp import SPSOLD2ExtractModel
 from utils_point.superpoint.model import NnmPointMatchModel
 from utils_line.sold2.model import WunschLinefeatureMatchModel
 

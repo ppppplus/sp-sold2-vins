@@ -232,7 +232,7 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         # print("superpoint run time:%f", end_time-start_time)
         # feature_points = pts[0:2].T.astype('int32')
         ############################################################
-        return pts, pts_desc, lines, lines_desc, valid_points
+        # return pts, pts_desc, lines, lines_desc, valid_points
     
     def reprocess_pts_np(self, pts, coarse_desc):
         profiler = Profiler()
@@ -261,6 +261,61 @@ class SPSOLD2ExtractModel(BaseExtractModel):
             desc /= torch.norm(desc, dim=0)
         profiler.stop()
         profiler.print()
+        return pts, desc
+    
+    def reprocess_pts(self, junctions, coarse_desc):
+        # reprocess net outputs and get pts&desc
+        ### junctions: 1,65,Hc,Wc
+        ### heatmap: 1,2,H,W
+        ### coarse_desc: 1,128,Hc,Wc
+        # time1 = time()
+        semi = junctions.squeeze()
+        dense = torch.exp(semi) # Softmax.
+        dense = dense / (torch.sum(dense, axis=0)+.00001) # Should sum to 1.
+        # Remove dustbin.
+        nodust = dense[:-1, :, :]
+        # Reshape to get full resolution heatmap.
+        
+        nodust = nodust.permute(1, 2, 0)
+        heatmap = torch.reshape(nodust, [self.Hc, self.Wc, self.grid_size, self.grid_size])
+        heatmap = heatmap.permute(0, 2, 1, 3)
+        heatmap = torch.reshape(heatmap, [self.Hc*self.grid_size, self.Wc*self.grid_size])
+        xs, ys = torch.where(heatmap >= self.conf_thresh) # Confidence threshold.
+        pts = torch.zeros((3, len(xs))).to(self.device) # Populate point data sized 3xN.
+        pts[0, :] = ys
+        pts[1, :] = xs
+        # pts[2, :] = heatmap[xs, ys]
+        # print("time1: ", time()-time1)
+        pts, _ = self.nms_fast_torch(pts, self.H, self.W, dist_thresh=self.nms_dist) # Apply NMS.
+        inds = torch.argsort(pts[2,:])
+        inds = torch.flip(inds, dims=[0])
+        pts = pts[:,inds] # Sort by confidence.
+        # Remove points along border.
+        bord = self.border_remove
+        toremoveW = torch.logical_or(pts[0, :] < bord, pts[0, :] >= (self.W-bord))
+        toremoveH = torch.logical_or(pts[1, :] < bord, pts[1, :] >= (self.H-bord))
+        toremove = torch.logical_or(toremoveW, toremoveH)
+        pts = pts[:, ~toremove]
+        # --- Process descriptor.
+        D = coarse_desc.shape[1]
+        # print("time2: ", time()-time1)
+        if pts.shape[1] == 0:
+            desc = torch.zeros((D, 0))
+        else:
+            # Interpolate into descriptor map using 2D point locations.
+            samp_pts = pts[:2, :]
+            samp_pts[0, :] = (samp_pts[0, :] / (float(self.W)/2.)) - 1.
+            samp_pts[1, :] = (samp_pts[1, :] / (float(self.H)/2.)) - 1.
+            samp_pts = samp_pts.transpose(     0, 1).contiguous()
+            samp_pts = samp_pts.view(1, 1, -1, 2)
+            samp_pts = samp_pts.float()
+            samp_pts = samp_pts.cuda()
+            desc = nn.functional.grid_sample(coarse_desc, samp_pts)
+            desc = desc.reshape(D, -1)
+            desc /= torch.norm(desc, dim=0)
+            # desc = desc.reshape(D, -1)
+            # desc = torch.norm(desc)[None]
+        # print("time3: ", time()-time1)
         return pts, desc
     
     def nms_fast_np(self, in_corners, H, W, dist_thresh):
@@ -328,6 +383,45 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         out_inds = inds1[inds_keep[inds2]]
         return out, out_inds
 
+    def nms_fast_torch(self, in_corners, H, W, dist_thresh):
+        grid = torch.zeros((H, W), dtype=int).to(self.device) # Track NMS data.
+        inds = torch.zeros((H, W), dtype=int).to(self.device) # Store indices of points.
+        # Sort by confidence and round to nearest int.
+        inds1 = torch.argsort(-in_corners[2,:])
+        corners = in_corners[:,inds1]
+        rcorners = corners[:2,:].round().int() # Rounded corners.
+        # Check for edge case of 0 or 1 corners.
+        if rcorners.shape[1] == 0:
+            return torch.zeros((3,0)).int(), torch.zeros(0).int()
+        if rcorners.shape[1] == 1:
+            out = torch.vstack((rcorners, in_corners[2])).reshape(3,1)
+            return out, torch.zeros((1), dtype=int)
+        # Initialize the grid.
+        for i, rc in enumerate(rcorners.T):
+            grid[rcorners[1,i], rcorners[0,i]] = 1
+            inds[rcorners[1,i], rcorners[0,i]] = i
+        # Pad the border of the grid, so that we can NMS points near the border.
+        pad = dist_thresh
+        grid = torch.nn.functional.pad(grid, (pad,pad,pad,pad), mode='constant', value=0)
+        # Iterate through points, highest to lowest conf, suppress neighborhood.
+        count = 0
+        for i, rc in enumerate(rcorners.T):
+            # Account for top and left padding.
+            pt = (rc[0]+pad, rc[1]+pad)
+            if grid[pt[1], pt[0]] == 1: # If not yet suppressed.
+                grid[pt[1]-pad:pt[1]+pad+1, pt[0]-pad:pt[0]+pad+1] = 0
+                grid[pt[1], pt[0]] = -1
+                count += 1
+        # Get all surviving -1's and return sorted array of remaining corners.
+        keepy, keepx = torch.where(grid==-1)
+        keepy, keepx = keepy - pad, keepx - pad
+        inds_keep = inds[keepy, keepx]
+        out = corners[:, inds_keep]
+        values = out[-1, :]
+        inds2 = torch.argsort(-values)
+        out = out[:, inds2]
+        out_inds = inds1[inds_keep[inds2]]
+        return out, out_inds
     
     def reprocess_lines_np(self, junc_np, heatmap, coarse_desc):
         # profiler = Profiler()
@@ -394,7 +488,7 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         return descriptors
 
 
-    def reprocess_pts(self, junctions, coarse_desc):
+    def reprocess_pts_bp(self, junctions, coarse_desc):
         # reprocess net outputs and get pts&desc
         ### junctions: 1,65,Hc,Wc
         ### heatmap: 1,2,H,W
@@ -663,71 +757,76 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         return output_segments
 
     def convert_junc_predictions(self, predictions):
-        profiler = Profiler()
-        profiler.start()
+        # profiler = Profiler()
+        # profiler.start()
         """ Convert torch predictions to numpy arrays for evaluation. """
-        # Convert to probability outputs first
-        # junc_prob = nn.functional.softmax(predictions, dim=1).cpu()
-        junc_no_dust = predictions.cpu().numpy()
-        junc_exp = np.exp(junc_no_dust)
+        #########################simple_nms##########################
+        junc_prob = nn.functional.softmax(predictions, dim=1)
+        junc_pred = junc_prob[:, :-1, :, :]
+        junc_pred = nn.functional.pixel_shuffle(
+            junc_pred, self.grid_size).permute(0, 2, 3, 1) # [1,H,W,1]
+        junc_pred = junc_pred[..., 0]
+        junc_pred_nms = self.simple_nms(junc_pred, self.grid_size)
+        coord = torch.where(junc_pred_nms >= self.conf_thresh) # HW format
+        points = torch.cat((coord[0][..., None], coord[1][..., None]),
+                                axis=1) # HW format
 
-        # junc_pred_np = nn.functional.pixel_shuffle(
-        #     junc_pred, self.grid_size).cpu().numpy().transpose(0, 2, 3, 1)
-        junc_pred_np_nms = self.softmax_nms(junc_exp, self.pad_size, self.detection_thresh, self.topk)
-        profiler.stop()
-        profiler.print()
-        return junc_pred_np_nms
+        # Get the probability score
+        junc_pred_nms = junc_pred_nms.squeeze()
+        prob_score = junc_pred_nms[points[:, 0], points[:, 1]]
+
+        # Perform super nms
+        # Modify the in_points to xy format (instead of HW format)
+        in_points = torch.cat((coord[1][..., None], coord[0][..., None],
+                                    prob_score[..., None]), axis=1).T
+        return in_points.cpu().numpy(), junc_pred_nms.cpu().numpy()
+        #########################simple_nms##########################
+        # Convert to probability outputs first
+        # junc_prob = nn.functional.softmax(predictions, dim=1)
+        # # junc_np = predictions.cpu().numpy()    # 1*65*Hc*Wc
+        # # junc_exp = np.exp(junc_no_dust)
+        # junc_pred = junc_prob[:, :-1, :, :]
+        # # junc_pred_np = nn.functional.pixel_shuffle(
+        # #     junc_pred, self.grid_size).transpose(0, 2, 3, 1)
+        # junc_pred = nn.functional.pixel_shuffle(
+        #     junc_pred, self.grid_size).permute(0, 2, 3, 1)
+        # junc_pred_np_nms = self.simple_nms(junc_pred, self.grid_size)
+        # pts, junc_np_nms = self.softmax_nms(junc_np, self.pad_size, self.detection_thresh, self.topk)
+        # profiler.stop()
+        # profiler.print()
+        # return junc_pred_np_nms
     
     def softmax_nms(self, prob_map, pad_size, prob_thresh, top_k):
         """
         softmax+nms, only do softmax on filtered points
         """
+        pts = [] 
+        junc_np_nms = np.zeros([self.H, self.W])
         for i in range(prob_map.shape[0]):
-            prob_pred = prob_map[i, ...]
-            coord = np.where(prob_pred >= prob_thresh)
-            points = np.concatenate((coord[0][..., None], coord[1][..., None]),
-                                    axis=1)
-            prob_score = prob_pred[points[:, 0], points[:, 1]]
-            xy_points = np.concatenate((coord[1][..., None], coord[0][..., None],
-                                        prob_score), axis=1).T
-            grid = np.zeros((self.Hc, self.Wc), dtype=int) # Track NMS data.
-            inds = np.zeros((self.Hc, self.Wc), dtype=int) # Store indices of points.
-            # Sort by confidence and round to nearest int.
-            inds1 = np.argsort(-xy_points[2,:])
-            corners = xy_points[:,inds1]
-            rcorners = np.round(corners[:2,:]) # Rounded corners.
-            if rcorners.shape[1] == 0:
-                return np.zeros((3,0)),
-            if rcorners.shape[1] == 1:
-                out = np.vstack((rcorners, prob_map[2])).reshape(3,1)
-                return out
-            # Initialize the grid.
-            for i in range(rcorners.shape[0]):
-                grid[rcorners[1,i], rcorners[0,i]] = 1
-                inds[rcorners[1,i], rcorners[0,i]] = i
-            # Pad the border of the grid, so that we can NMS points near the border.
-            pad = pad_size
-            grid = np.pad(grid, pad_width=pad, mode='constant', value=0)
-            # Iterate through points, highest to lowest conf, suppress neighborhood.
-            count = 0
-            for i, rc in enumerate(rcorners.T):
-                # Account for top and left padding.
-                pt = (rc[0]+pad, rc[1]+pad)
-                if grid[pt[1], pt[0]] == 1: # If not yet suppressed.
-                    grid[pt[1]-pad:pt[1]+pad+1, pt[0]-pad:pt[0]+pad+1] = 0
-                    grid[pt[1], pt[0]] = -1
-                    count += 1
-            keepy, keepx = torch.where(grid==-1)
-            keepy, keepx = keepy - pad, keepx - pad
-            inds_keep = inds[keepy, keepx]
-            out = corners[:, inds_keep]
-            values = out[-1, :]
-            inds2 = torch.argsort(-values)
-            out = out[:, inds2]
+            prob_pred_grids = prob_map[i, ...]
+            prob_pred_grids = prob_pred_grids.reshape((65, -1)).transpose(1, 0)   # (Hc*Wc)*65
+            for j in range(prob_pred_grids.shape[0]):
+                prob_pred_grid = prob_pred_grids[j]
+                dust = prob_pred_grid[-1]
+                no_dust = prob_pred_grid[:-1]
+                prob_grid_sorted_index = np.argsort(-no_dust)
+                prob_grid_sorted = no_dust[prob_grid_sorted_index]
+                prob_grid_max_index = prob_grid_sorted_index[0]
+                prob_grid_max = prob_grid_sorted[0]
+                prob_grid_exp_index = (prob_grid_sorted>0)&(prob_grid_sorted>0.1*prob_grid_max)
+                prob_grid_exp = prob_grid_sorted[prob_grid_exp_index]
+                if len(prob_grid_exp) != 0:
+                    prob_grid_exp = np.exp(prob_grid_exp)
+                    prob_grid_softmax = prob_grid_exp[0]/(np.sum(prob_grid_exp)+np.exp(dust))
+                    prob_grid_nms_x = j//self.Wc*self.grid_size+(prob_grid_max_index//self.grid_size)
+                    prob_grid_nms_y = j%self.Wc*self.grid_size+(prob_grid_max_index%self.grid_size)
+                    pts.append([prob_grid_nms_x, prob_grid_nms_y, prob_grid_softmax])
+                    junc_np_nms[prob_grid_nms_x, prob_grid_nms_y] = prob_grid_softmax
+        pts = np.array(pts)
+        inds = np.argsort(-pts[2,:])
+        pts = pts[:,inds] # Sort by confidence.
+        return pts, junc_np_nms
             
-
-
-
     def super_nms(self, prob_predictions, dist_thresh, prob_thresh=0.01, top_k=0):
         """ Non-maximum suppression adapted from SuperPoint. """
         # Iterate through batch dimension
@@ -835,14 +934,12 @@ class SPSOLD2ExtractModel(BaseExtractModel):
         out_inds = inds1[inds_keep[inds2]]
         return out, out_inds
 
-
-
     def simple_nms(self, heatmap, nms_radius: int):
         """ Fast Non-maximum suppression to remove nearby points """
         assert(nms_radius >= 0)
         zeros = torch.zeros_like(heatmap)
         max_mask = heatmap == max_pool(heatmap, nms_radius)
-        for _ in range(2):
+        for _ in range(1):
             supp_mask = max_pool(max_mask.float(), nms_radius) > 0
             supp_scores = torch.where(supp_mask, zeros, heatmap)
             new_max_mask = supp_scores == max_pool(supp_scores, nms_radius)
@@ -860,25 +957,3 @@ class SPSOLD2ExtractModel(BaseExtractModel):
             new_max_mask = supp_scores == max_pool(supp_scores, nms_radius)
             max_mask = max_mask | (new_max_mask & (~supp_mask))
         return np.where(max_mask, heatmap, 0)
-    
-def max_pool(x, nms_radius):
-            return torch.nn.functional.max_pool2d(
-                x, kernel_size=nms_radius*2+1, stride=1, padding=nms_radius)
-   
-def weight_init(m):
-    """ Weight initialization function. """
-    # Conv2D
-    if isinstance(m, nn.Conv2d):
-        init.xavier_normal_(m.weight.data)
-        if m.bias is not None:
-            init.normal_(m.bias.data)
-    # Batchnorm
-    elif isinstance(m, nn.BatchNorm2d):
-        init.normal_(m.weight.data, mean=1, std=0.02)
-        init.constant_(m.bias.data, 0)
-    # Linear
-    elif isinstance(m, nn.Linear):
-        init.xavier_normal_(m.weight.data)
-        init.normal_(m.bias.data)
-    else:
-        pass

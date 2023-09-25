@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
     sensor_msgs
     camera_model
     message_filters
+    message_generation
+    message_runtime
     cv_bridge
     )
 
@@ -21,7 +23,17 @@ find_package(cv_bridge REQUIRED)
 # Set(OpenCV_DIR "/home/nvidia/package/opencv-3.2.0/build")
 find_package(OpenCV)
 
-catkin_package()
+add_message_files(
+    FILES
+    Featuremap.msg
+)
+generate_messages(
+    DEPENDENCIES 
+    std_msgs
+)
+
+catkin_package(CATKIN_DEPENDS
+message_runtime)
 
 include_directories(
     ${catkin_INCLUDE_DIRS}
@@ -33,12 +45,21 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
 #   /home/plus/plvins_ws/src/PL-VINS/feature_tracker/src/line_descriptor/include # find LSD 
-) 
+)
 
 # file(GLOB_RECURSE OLD_OPENCV "/usr/lib/aarch64-linux-gnu/libopencv*")
 #file(GLOB_RECURSE OLD_CV_BRIDGE "/opt/ros/noetic/lib/libcv_bridge.so")
 # list(REMOVE_ITEM catkin_LIBRARIES ${OLD_OPENCV})
 #list(REMOVE_ITEM catkin_LIBRARIES ${OLD_CV_BRIDGE})
+
+add_executable(postprocess
+    src/postprocess_node.cpp
+    src/postprocess_parameters.cpp
+    src/postprocess.cpp
+    src/postprocess.h
+    )
+add_dependencies(postprocess ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(postprocess ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
 add_executable(origin_feature_tracker
     src/feature_tracker_node.cpp
