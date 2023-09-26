@@ -12,6 +12,6 @@ extern int Height;
 extern int Width;
 extern int Hc;
 extern int Wc; 
-extern int Junction_Channnel;
+extern int Junction_Channel;
 extern int Desc_Dim;
 void readPostprocessParameters(ros::NodeHandle &n);

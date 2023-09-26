@@ -52,7 +52,7 @@ void readPostprocessParameters(ros::NodeHandle &n)
     Desc_Dim = 128;
     Hc = Height/GRID_SIZE;
     Wc = Width/GRID_SIZE;
-    Juction_Channel = GRID_SIZE*GRID_SIZE+1;
+    Junction_Channel = GRID_SIZE*GRID_SIZE+1;
 
     fsSettings.release();
 

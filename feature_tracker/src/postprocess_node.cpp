@@ -16,13 +16,31 @@ int coarse_desc_c, coarse_desc_h, coarse_desc_w;
 // cv::Mat heatmap_data;
 // cv::Mat junction_data;
 // cv::Mat coarse_desc_data;
-float* heatmap_data;
-float* junction_data;
-float* coarse_desc_data;
+std::vector<double>* heatmap_data_array;
+std::vector<double>* junction_data_array;
+std::vector<double>* coarse_desc_data_array;
 
 std_msgs::Float64MultiArray heatmap;
 std_msgs::Float64MultiArray junction;
 std_msgs::Float64MultiArray coarse_desc;
+std_msgs::Float64MultiArray pts;
+
+ros::Publisher pub_pts
+
+void publish_pts(vector<FeaturePts> pts)
+{
+    int l = pts.size()
+    std_msgs::MultiArrayDimension d1, d2, d3
+    d1 = l;
+    d2 = 3;
+    d3 = 1;
+    std_msgs::MultiArrayLayout layout;
+    layout.data_offset = 0;
+    layout.dim = std::vector<std_msgs::MultiArrayDimension>({d1, d2, d3});
+    msg.data = std::vector<int32_t>(img.reshape(1, h * w * c));
+    msg.layout = layout;
+    pub.publish(msg);
+}
 
 void featuremap_callback(const feature_tracker::Featuremap::ConstPtr &map_msg)
 {
@@ -41,17 +59,18 @@ void featuremap_callback(const feature_tracker::Featuremap::ConstPtr &map_msg)
     // heatmap_data = cv::Mat(heatmap.data).reshape(heatmap_c, heatmap_h);
     // junction_data = cv::Mat(junction.data).reshape(junction_c, junction_h);
     // coarse_desc_data = cv::Mat(junction.data).reshape(junction_c, junction_h);
-    heatmap_data = (float*) heatmap.data;
-    junction_data = (float*) junction.data;
-    coarse_desc_data = (float*) coarse_desc.data;
+    heatmap_data_array = &heatmap.data;
+    junction_data_array = &junction.data;
+    coarse_desc_data_array = &coarse_desc.data;
 
-    std::cout << "get heatmap with size: " << heatmap_c << " " << heatmap_h << " " << heatmap_w << std::endl;
-    std::cout << "get junction with size: " << junction_c << " " << junction_h << " " << junction_w << std::endl;
-    std::cout << "get coarse_desc with size: " << coarse_desc_c << " " << coarse_desc_h << " " << coarse_desc_w << std::endl;
+    // std::cout << "get heatmap with size: " << heatmap.data.size() << std::endl;
+    // std::cout << "get junction with size: " << junction.data.size() << std::endl;
+    // std::cout << "get coarse_desc with size: " << coarse_desc.data.size() << std::endl;
     
-    vector<postprocess::FeaturePts> *pts;
-    postprocess::postprocess_pts(junction_data, coarse_desc_data, pts);
-
+    vector<FeaturePts> pts;
+    postprocess_pts(junction_data_array, coarse_desc_data_array, pts);
+    publish_pts(pts);
+    
 }
 
 int main(int argc, char **argv)
@@ -62,7 +81,7 @@ int main(int argc, char **argv)
     readPostprocessParameters(n);
     std::cout << "postprocess node initialized, waiting for topic " << MAP_TOPIC << std::endl;
     ros::Subscriber sub_featuremap = n.subscribe(MAP_TOPIC, 100, featuremap_callback);
-
+    pub_pts = n.advertise<std_msgs::Float64MultiArray>(PTS_TOPIC, 100);
     // pub_pts = n.advertise<feature_tracker::Points>("pts", 1000);
     // pub_lines = n.advertise<feature_tracker::Lines>("lines", 1000);
     /*

@@ -1,15 +1,15 @@
 #include "postprocess.h"
-
-void postprocess_pts(float* input_junction,
-                                float* input_desc,
-                                vector<FeaturePts> & out_points
-                                // ,vector<float>& out_desc
-                                )
+using namespace std;
+void postprocess_pts(vector<double>* input_junction,
+                        vector<double>* input_desc,
+                        vector<FeaturePts> & out_points
+                        // ,vector<float>& out_desc
+                        )
 {
 
-    float* result_junction = (float*)input_junction; //65*Hc*Wc
-    float* result_desc = (float*)input_desc;
-    int num_semi = Junction_Channnel*Hc*Wc; //65*Hc*Wc
+    vector<double>* result_junction = input_junction; //65*Hc*Wc
+    vector<double>* result_desc = input_desc;
+    int num_semi = Junction_Channel*Hc*Wc; //65*Hc*Wc
     int num_desc = Desc_Dim*Hc*Wc;
 
     // static TimerKeeper cnn_post_exp_cost("CNN后处理--exp操作 平均用时: ");
@@ -17,11 +17,11 @@ void postprocess_pts(float* input_junction,
     // cnn_post_exp_cost.average_time_cost();
     
     
-    static TimerKeeper cnn_post_softmax_cost("CNN后处理--softmax（仅计算8x8区域置信度最大值） 平均用时: ");
-    cnn_post_softmax_cost.mark();
+    static TimerKeeper post_softmax_cost("CNN后处理--softmax（仅计算8x8区域置信度最大值） 平均用时: ");
+    post_softmax_cost.mark();
     // float semi[Height][Width];
-    postprocess::FeaturePts coarse_semi[Hc][Wc]; // Height/Cell*Width/Cell个数据，每个里面存有原图x，y坐标和分数
-    vector<postprocess::FeaturePts> tmp_point;
+    FeaturePts coarse_semi[Hc][Wc]; // Height/Cell*Width/Cell个数据，每个里面存有原图x，y坐标和分数
+    vector<FeaturePts> tmp_point;
     // float coarse_desc[Height/Cell][Width/Cell][D];
     
     // int16_t max_point_select_thresh=floor(log(CONF_thresh)/SEMI_QUANTIZE);//最大值相对于65channel的score小于后续的CONF-THRESH
@@ -30,14 +30,14 @@ void postprocess_pts(float* input_junction,
     for(int i=0; i<Hc; i++) {
         for(int j=0; j<Wc; j++) {
             //selec max point 遍历Hc*Wc的特征图
-            int cell_index=j*Junction_Channnel+i*Junction_Channnel*Wc; // featuremap中的一个特征点位置
-            float semi_max=-100;
+            int cell_index=j*Junction_Channel+i*Junction_Channel*Wc; // featuremap中的一个特征点位置
+            double semi_max=-100;
             int max_h=0, max_w=0;
             for(int kh=0; kh<GRID_SIZE; kh++) 
             {
                 for(int kw=0; kw<GRID_SIZE; kw++) 
                 {
-                    float cur_semi= result_junction[kw+kh*GRID_SIZE+cell_index];
+                    double cur_semi= result_junction->at(kw+kh*GRID_SIZE+cell_index);
                     if(cur_semi > semi_max) {
                         semi_max = cur_semi;
                         max_h = kh;
@@ -47,13 +47,13 @@ void postprocess_pts(float* input_junction,
             } // 找到当前cell中最大值的位置（相对于整个一维数组 max_h,max_w）和值semi_max
             
             // get normalized score
-            float semi_background=result_junction[Junction_Channnel-1+cell_index]; //当前cell垃圾桶
+            double semi_background=result_junction->at(Junction_Channel-1+cell_index); //当前cell垃圾桶
             if ( (semi_max - semi_background) > PTS_SELECT_THRESH){
                 // 说明当前cell中的最大值有效，纳入exp计算
-                float cell_sum = 0;
-                float max_semi_total=max(semi_max,semi_background); // 65通道内最大值
-                for(int k=0; k<Junction_Channnel; k++) {
-                    float cur_semi =  result_junction[k+cell_index];
+                double cell_sum = 0;
+                double max_semi_total=max(semi_max,semi_background); // 65通道内最大值
+                for(int k=0; k<Junction_Channel; k++) {
+                    double cur_semi =  result_junction->at(k+cell_index);
                     if((cur_semi - max_semi_total) > PTS_SELECT_THRESH)
                         // 说明当前的分数有效，纳入exp计算
                         cell_sum = cell_sum + exp(cur_semi);//fastexp::exp<float, IEEE, 4UL>(float(cur_semi*SEMI_QUANTIZE));
@@ -77,10 +77,10 @@ void postprocess_pts(float* input_junction,
             // }
         }
     }
-    cnn_post_softmax_cost.average_time_cost();
+    post_softmax_cost.average_time_cost();
 
-    static TimerKeeper cnn_post_nms_cost("CNN后处理--nms（仅抑制8x8块的邻居） 平均用时: ");
-    cnn_post_nms_cost.mark();
+    static TimerKeeper post_nms_cost("CNN后处理--nms（仅抑制8x8块的邻居） 平均用时: ");
+    post_nms_cost.mark();
     // coarse_semi 为Hc*Wc的softmax结果
     
     //coarse NMS
@@ -88,7 +88,7 @@ void postprocess_pts(float* input_junction,
         for(int j=1; j<Wc-1; j++) {
             if(coarse_semi[i][j].score != 0) {
                 // 记录下此cell的分数，在其九宫格内做nms
-                float tmp_score = coarse_semi[i][j].score;
+                double tmp_score = coarse_semi[i][j].score;
                 for(int kh=max(1,i-1); kh<min(Hc-1,i+1+1); kh++)
                     for(int kw=max(1,j-1); kw<min(Wc-1,j+1+1); kw++)
                         if(i!=kh||j!=kw) {
@@ -105,16 +105,16 @@ void postprocess_pts(float* input_junction,
         }
     } 
     
-    cnn_post_nms_cost.average_time_cost();
+    post_nms_cost.average_time_cost();
     
 
 
-    static TimerKeeper cnn_post_rank_cost("CNN后处理--thresh_check + rank_topK 平均用时: ");
-    cnn_post_rank_cost.mark();
+    static TimerKeeper post_rank_cost("CNN后处理--thresh_check + rank_topK 平均用时: ");
+    post_rank_cost.mark();
     //CONF_thresh
     vector<FeaturePts> thresh_points;
     for(int i=0; i<tmp_point.size(); i++) {
-        if(tmp_point[i].semi >= NMS_THRESH) {
+        if(tmp_point[i].score >= NMS_THRESH) {
             thresh_points.push_back(tmp_point[i]);
         }
     }
@@ -124,7 +124,7 @@ void postprocess_pts(float* input_junction,
     // topk 并且这k个数是排序好的
     vector<FeaturePts> top_points; 
     int thresh_size=thresh_points.size();
-    int keep_k_points=min(KEEP_K_POINTS, thresh_size);
+    int keep_k_points=min(TOPK, thresh_size);
     make_heap(thresh_points.begin(), thresh_points.end(), LessFunc());//大根堆
     for(int i=0;i<keep_k_points;i++)   
         pop_heap(thresh_points.begin(),thresh_points.end()-i, LessFunc());
@@ -132,11 +132,8 @@ void postprocess_pts(float* input_junction,
     for(int i=0;i<keep_k_points;i++) 
         top_points.push_back(thresh_points[thresh_size-1-i]);
     out_points = top_points;
-    cnn_post_rank_cost.average_time_cost();
+    post_rank_cost.average_time_cost();
     cout<<" finally selected points size:"<<out_points.size()<<endl;
-    
-    
-
 
     // static TimerKeeper cnn_post_desc_cost("CNN后处理--desc norm+grid_sample 平均用时: ");
     // cnn_post_desc_cost.mark();

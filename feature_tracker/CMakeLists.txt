@@ -56,7 +56,7 @@ add_executable(postprocess
     src/postprocess_node.cpp
     src/postprocess_parameters.cpp
     src/postprocess.cpp
-    src/postprocess.h
+    # src/postprocess.h
     )
 add_dependencies(postprocess ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(postprocess ${catkin_LIBRARIES} ${OpenCV_LIBS})
