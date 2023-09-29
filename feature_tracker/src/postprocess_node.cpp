@@ -3,7 +3,8 @@
 #include <message_filters/subscriber.h>
 
 
-#include <std_msgs/Float64MultiArray.h>
+#include <std_msgs/Float32MultiArray.h>
+#include <std_msgs/Int32MultiArray.h>
 #include <feature_tracker/Featuremap.h>
 #include "postprocess_parameters.h"
 #include "postprocess.h"
@@ -16,30 +17,32 @@ int coarse_desc_c, coarse_desc_h, coarse_desc_w;
 // cv::Mat heatmap_data;
 // cv::Mat junction_data;
 // cv::Mat coarse_desc_data;
-std::vector<double>* heatmap_data_array;
-std::vector<double>* junction_data_array;
-std::vector<double>* coarse_desc_data_array;
+std::vector<float>* heatmap_data_array;
+std::vector<float>* junction_data_array;
+std::vector<float>* coarse_desc_data_array;
 
-std_msgs::Float64MultiArray heatmap;
-std_msgs::Float64MultiArray junction;
-std_msgs::Float64MultiArray coarse_desc;
-std_msgs::Float64MultiArray pts;
+std_msgs::Float32MultiArray heatmap;
+std_msgs::Float32MultiArray junction;
+std_msgs::Float32MultiArray coarse_desc;
+std_msgs::Int32MultiArray pts;
 
-ros::Publisher pub_pts
+ros::Publisher pub_pts;
 
-void publish_pts(vector<FeaturePts> pts)
+void publish_pts(std::vector<int32_t> pts)
 {
-    int l = pts.size()
-    std_msgs::MultiArrayDimension d1, d2, d3
-    d1 = l;
-    d2 = 3;
-    d3 = 1;
+    int l = pts.size();
+    std_msgs::Int32MultiArray msg;
+    std_msgs::MultiArrayDimension d1, d2, d3;
+    
+    d1.size = l;
+    d2.size = 1;
+    d3.size = 1;
     std_msgs::MultiArrayLayout layout;
     layout.data_offset = 0;
     layout.dim = std::vector<std_msgs::MultiArrayDimension>({d1, d2, d3});
-    msg.data = std::vector<int32_t>(img.reshape(1, h * w * c));
+    msg.data = pts;
     msg.layout = layout;
-    pub.publish(msg);
+    pub_pts.publish(msg);
 }
 
 void featuremap_callback(const feature_tracker::Featuremap::ConstPtr &map_msg)
@@ -67,10 +70,17 @@ void featuremap_callback(const feature_tracker::Featuremap::ConstPtr &map_msg)
     // std::cout << "get junction with size: " << junction.data.size() << std::endl;
     // std::cout << "get coarse_desc with size: " << coarse_desc.data.size() << std::endl;
     
-    vector<FeaturePts> pts;
-    postprocess_pts(junction_data_array, coarse_desc_data_array, pts);
+    // vector<FeaturePts> pts;
+    std::vector<int32_t> pts;
+    std::vector<float> scores;
+    std::vector<FeaturePts> juncs;
+    postprocess_pts(junction_data_array, coarse_desc_data_array, pts, scores, juncs);
     publish_pts(pts);
-    
+    std::vector<FeatureLines> feature_lines;
+    std::vector<int32_t> lines;
+    std::vector<FeaturePts>* juncs_array = &juncs;
+    postprocess_lines(heatmap_data_array, juncs_array, coarse_desc_data_array, lines, feature_lines);
+    std::cout<<"lines_size: "<<lines.size()<<std::endl;
 }
 
 int main(int argc, char **argv)
@@ -81,7 +91,7 @@ int main(int argc, char **argv)
     readPostprocessParameters(n);
     std::cout << "postprocess node initialized, waiting for topic " << MAP_TOPIC << std::endl;
     ros::Subscriber sub_featuremap = n.subscribe(MAP_TOPIC, 100, featuremap_callback);
-    pub_pts = n.advertise<std_msgs::Float64MultiArray>(PTS_TOPIC, 100);
+    pub_pts = n.advertise<std_msgs::Int32MultiArray>(PTS_TOPIC, 100);
     // pub_pts = n.advertise<feature_tracker::Points>("pts", 1000);
     // pub_lines = n.advertise<feature_tracker::Lines>("lines", 1000);
     /*

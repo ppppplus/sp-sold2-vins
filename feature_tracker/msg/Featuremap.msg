@@ -1,4 +1,4 @@
 
-std_msgs/Float64MultiArray heatmap
-std_msgs/Float64MultiArray junction
-std_msgs/Float64MultiArray coarse_desc
+std_msgs/Float32MultiArray heatmap
+std_msgs/Float32MultiArray junction
+std_msgs/Float32MultiArray coarse_desc

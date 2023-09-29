@@ -30,6 +30,17 @@ class FeaturePts
         float score;
 };
 
+class FeatureLines
+{
+    public:
+        int startPointx;
+        int startPointy;
+        int endPointx;
+        int endPointy;
+        float score;
+        FeatureLines(int x1, int x2, int x3, int x4);
+};
+
 class LessFunc {
     public:
         bool operator() (const FeaturePts &l, const FeaturePts &r) const {
@@ -63,8 +74,26 @@ class TimerKeeper{
         }
 };
 
-void postprocess_pts(vector<double>* input_junction,
-                        vector<double>* input_descriptor,
-                        vector<FeaturePts> & out_points);
-                        // vector<int8_t>& out_desc)
+// vector<vector<double>> initial_matrix(int m, int n) {
+//     //初始化矩阵
+//     vector<vector<double>> array(m);
+//     for (int i = 0; i < m; i++)
+//     {
+//         array[i].resize(n);
+//     }
+//     return array;
+// }
 
+void postprocess_pts(vector<float>* input_junction,
+                        vector<float>* input_descriptor,
+                        vector<int32_t> &out_pts,
+                        vector<float> &out_scores,
+                        vector<FeaturePts> &out_junc);
+                        // vector<int8_t>& out_desc)
+void postprocess_lines(vector<float>* input_heatmap,
+                        vector<FeaturePts>* input_pts,
+                        vector<float>* input_desc,
+                        vector<int32_t> &out_lines,
+                        // vector<float> &out_scores
+                        vector<FeatureLines> &res_lines
+                        );

@@ -89,7 +89,7 @@ def img_callback(img_msg, params_dict):
 
 if __name__ == '__main__':
     rospy.init_node('featuremap_generator', anonymous=False)
-    yamlPath = rospy.get_param("~config_path", "/home/nvidia/Work/sp-sold2-vins_ws/src/sp-sold2-vins/config/feature_tracker/featuremap_config.yaml")
+    yamlPath = rospy.get_param("~config_path", "/home/nvidia/Work/sp-sold2-vins_ws/src/sp-sold2-vins/config/feature_tracker/sp-sold2net_config.yaml")
     with open(yamlPath,'rb') as f:
       params = yaml.load(f, Loader=yaml.FullLoader)
       model_params = params["model_cfg"]

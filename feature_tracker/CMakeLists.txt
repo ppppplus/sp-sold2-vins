@@ -3,7 +3,7 @@ project(feature_tracker)
 
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_FLAGS "-std=c++14")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
+set(CMAKE_CXX_FLAGS_RELEASE " -Wall -g")
 
 
 # set(cv_bridge_DIR "/home/nvidia/cv_bridge_ws/devel/share/cv_bridge/cmake")
