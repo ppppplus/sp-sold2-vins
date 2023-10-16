@@ -17,6 +17,10 @@ int NUM_SAMPLES;
 int NMS_DIST;
 int TOPK;
 int CANDK;
+
+Eigen::MatrixXd sampler;
+Eigen::MatrixXd sampler1;
+
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
 {
@@ -64,6 +68,9 @@ void readPostprocessParameters(ros::NodeHandle &n)
     Hc = Height/GRID_SIZE;
     Wc = Width/GRID_SIZE;
     Junction_Channel = GRID_SIZE*GRID_SIZE+1;
+
+    sampler = Eigen::MatrixXd(1, NUM_SAMPLES);
+    sampler1 = Eigen::MatrixXd(1, NUM_SAMPLES);
 
     fsSettings.release();
 

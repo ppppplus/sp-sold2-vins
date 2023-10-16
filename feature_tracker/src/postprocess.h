@@ -1,4 +1,5 @@
-#pragma once
+#ifndef POSTPROCESS_H
+#define POSTPROCESS_H
 
 #include <cstdio>
 #include <iostream>
@@ -15,12 +16,16 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include<Eigen/Core>
+#include<Eigen/Dense>
 
 #include "postprocess_parameters.h"
 
 // using fastexp::IEEE;
 // using fastexp::Product;
 using namespace std;
+
+void sampler_init();
 
 class FeaturePts
 {
@@ -44,6 +49,13 @@ class FeatureLines
 class LessFunc {
     public:
         bool operator() (const FeaturePts &l, const FeaturePts &r) const {
+            return l.score < r.score;
+        }
+};
+
+class LineLessFunc{
+        public:
+        bool operator() (const FeatureLines &l, const FeatureLines &r) const {
             return l.score < r.score;
         }
 };
@@ -88,12 +100,17 @@ void postprocess_pts(vector<float>* input_junction,
                         vector<float>* input_descriptor,
                         vector<int32_t> &out_pts,
                         vector<float> &out_scores,
-                        vector<FeaturePts> &out_junc);
+                        Eigen::Ref<Eigen::MatrixXi> out_junc
+                        ); 
+                        // vector<FeaturePts> &out_junc);
                         // vector<int8_t>& out_desc)
-void postprocess_lines(vector<float>* input_heatmap,
-                        vector<FeaturePts>* input_pts,
+void postprocess_lines( // vector<float>* input_heatmap,
+                        // vector<FeaturePts>* input_pts,shuang
+                        float* input_heatmap,
+                        Eigen::MatrixXi input_pts,
                         vector<float>* input_desc,
                         vector<int32_t> &out_lines,
                         // vector<float> &out_scores
                         vector<FeatureLines> &res_lines
                         );
+#endif

@@ -17,7 +17,7 @@ int coarse_desc_c, coarse_desc_h, coarse_desc_w;
 // cv::Mat heatmap_data;
 // cv::Mat junction_data;
 // cv::Mat coarse_desc_data;
-std::vector<float>* heatmap_data_array;
+float* heatmap_data_array;
 std::vector<float>* junction_data_array;
 std::vector<float>* coarse_desc_data_array;
 
@@ -62,7 +62,11 @@ void featuremap_callback(const feature_tracker::Featuremap::ConstPtr &map_msg)
     // heatmap_data = cv::Mat(heatmap.data).reshape(heatmap_c, heatmap_h);
     // junction_data = cv::Mat(junction.data).reshape(junction_c, junction_h);
     // coarse_desc_data = cv::Mat(junction.data).reshape(junction_c, junction_h);
-    heatmap_data_array = &heatmap.data;
+    heatmap_data_array = heatmap.data.data();
+    // Eigen::Map<Eigen::MatrixXf> heatmapMap(heatmap_data_array, heatmap_h, heatmap_w);
+    // Eigen::MatrixXf heatmapMatrix = Eigen::MatrixXf(heatmapMap);
+    // Eigen::MatrixXd heatmap_data = heatmapMatrix.resize(heatmap_h, heatmap_w);
+    // Eigen::Ref<Eigen::MatrixXf> heatmap_data_array = heatmapMatrix;
     junction_data_array = &junction.data;
     coarse_desc_data_array = &coarse_desc.data;
 
@@ -73,13 +77,15 @@ void featuremap_callback(const feature_tracker::Featuremap::ConstPtr &map_msg)
     // vector<FeaturePts> pts;
     std::vector<int32_t> pts;
     std::vector<float> scores;
-    std::vector<FeaturePts> juncs;
+    // std::vector<FeaturePts> juncs;
+    Eigen::MatrixXi juncs(CANDK, 2);
     postprocess_pts(junction_data_array, coarse_desc_data_array, pts, scores, juncs);
     publish_pts(pts);
     std::vector<FeatureLines> feature_lines;
     std::vector<int32_t> lines;
-    std::vector<FeaturePts>* juncs_array = &juncs;
-    postprocess_lines(heatmap_data_array, juncs_array, coarse_desc_data_array, lines, feature_lines);
+    // std::vector<FeaturePts>* juncs_array = &juncs;
+    // Eigen::MatrixXi* juncs_array = juncs;
+    postprocess_lines(heatmap_data_array, juncs, coarse_desc_data_array, lines, feature_lines);
     std::cout<<"lines_size: "<<lines.size()<<std::endl;
 }
 
@@ -89,6 +95,7 @@ int main(int argc, char **argv)
     ros::NodeHandle n("~"); 
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
     readPostprocessParameters(n);
+    sampler_init();
     std::cout << "postprocess node initialized, waiting for topic " << MAP_TOPIC << std::endl;
     ros::Subscriber sub_featuremap = n.subscribe(MAP_TOPIC, 100, featuremap_callback);
     pub_pts = n.advertise<std_msgs::Int32MultiArray>(PTS_TOPIC, 100);

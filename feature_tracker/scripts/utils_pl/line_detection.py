@@ -389,7 +389,7 @@ class LineSegmentDetectionModule(object):
                               candidate_junc_end[:, 0:1] * (1 - sampler))
             cand_samples_w = (candidate_junc_start[:, 1:2] * sampler +
                               candidate_junc_end[:, 1:2] * (1 - sampler))
-            
+             
             # Clip to image boundary
             cand_h = torch.clamp(cand_samples_h, min=0, max=H - 1)
             cand_w = torch.clamp(cand_samples_w, min=0, max=W - 1)

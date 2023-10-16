@@ -1,6 +1,8 @@
 #pragma once
 #include <ros/ros.h>
 #include <opencv2/highgui/highgui.hpp>
+#include<Eigen/Core>
+#include<Eigen/Dense>
 
 extern std::string MAP_TOPIC;
 extern std::string PTS_TOPIC;
@@ -16,7 +18,9 @@ extern int CANDK;
 extern int Height;
 extern int Width;
 extern int Hc;
-extern int Wc; 
+extern int Wc;
 extern int Junction_Channel;
 extern int Desc_Dim;
+extern Eigen::MatrixXd sampler;
+extern Eigen::MatrixXd sampler1;
 void readPostprocessParameters(ros::NodeHandle &n);
