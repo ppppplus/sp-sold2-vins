@@ -20,8 +20,10 @@ find_package(catkin REQUIRED COMPONENTS
     )
 
 find_package(cv_bridge REQUIRED)
+find_package(NumCpp 2.12.0 REQUIRED)
 # Set(OpenCV_DIR "/home/nvidia/package/opencv-3.2.0/build")
 find_package(OpenCV)
+find_package(Eigen3  REQUIRED)
 
 add_message_files(
     FILES
@@ -40,7 +42,7 @@ include_directories(
     )
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-find_package(Eigen3  REQUIRED)
+
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
@@ -59,7 +61,7 @@ add_executable(postprocess
     # src/postprocess.h
     )
 add_dependencies(postprocess ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(postprocess ${catkin_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(postprocess ${catkin_LIBRARIES} ${OpenCV_LIBS} NumCpp::NumCpp)
 
 add_executable(origin_feature_tracker
     src/feature_tracker_node.cpp

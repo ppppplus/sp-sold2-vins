@@ -63,7 +63,6 @@ void featuremap_callback(const feature_tracker::Featuremap::ConstPtr &map_msg)
     // junction_data = cv::Mat(junction.data).reshape(junction_c, junction_h);
     // coarse_desc_data = cv::Mat(junction.data).reshape(junction_c, junction_h);
     heatmap_data_array = heatmap.data.data();
-    nc::NdArray<float> heatmap_nc(heatmap_data_array, heatmap_h, heatmap_w);
     // Eigen::Map<Eigen::MatrixXf> heatmapMap(heatmap_data_array, heatmap_h, heatmap_w);
     // Eigen::MatrixXf heatmapMatrix = Eigen::MatrixXf(heatmapMap);
     // Eigen::MatrixXd heatmap_data = heatmapMatrix.resize(heatmap_h, heatmap_w);
@@ -86,10 +85,8 @@ void featuremap_callback(const feature_tracker::Featuremap::ConstPtr &map_msg)
     std::vector<int32_t> lines;
     // std::vector<FeaturePts>* juncs_array = &juncs;
     // Eigen::MatrixXi* juncs_array = juncs;
-    nc::NdArray<int> juncs_nc = nc::NdArray<int>(juncs.data(), juncs.rows(), juncs.cols());
-
-    postprocess_lines(heatmap_nc, juncs_nc, coarse_desc_data_array, lines, feature_lines);
-    // std::cout<<"lines_size: "<<lines.size()<<std::endl;
+    postprocess_lines(heatmap_data_array, juncs, coarse_desc_data_array, lines, feature_lines);
+    std::cout<<"lines_size: "<<lines.size()<<std::endl;
 }
 
 int main(int argc, char **argv)

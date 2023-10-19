@@ -10,7 +10,7 @@ extern int GRID_SIZE;
 extern float NMS_THRESH;
 extern float PTS_SELECT_THRESH;
 extern float DETECT_THRESH;
-extern float INLIER_THRESH;
+extern double INLIER_THRESH;
 extern int NUM_SAMPLES;
 extern int NMS_DIST;
 extern int TOPK;

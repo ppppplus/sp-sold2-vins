@@ -287,66 +287,12 @@ bool filterLines(
 //     post_lines_cost.average_time_cost();
 // };
 
-template<typename dtype>
-nc::NdArray<dtype> getSlicefromIndexArray(nc::NdArray<dtype> matrix, nc::NdArray<dtype> index1, nc::NdArray<dtype> index2)
-{   
-    int num_col = matrix.numCols();
-    nc::NdArray index = index1.template astype<int>()*num_col + index2.template astype<int>();
-    nc::NdArray<dtype> res = matrix[index];
-    return res;
-};
-
-
-nc::NdArray<int> createCandIndex(int num_candidate_junc)
-{
-    nc::NdArray<int> candidate_index = nc::zeros<int>(2,0);
-    for (int i=0; i<num_candidate_junc; i++)
-    {
-        auto hc = nc::ones<int>(1, num_candidate_junc-i-1);
-        hc = hc * i;
-        auto vc = nc::arange<int>(i+1, num_candidate_junc);
-        auto idx = nc::vstack({hc,vc});
-        candidate_index = nc::append(candidate_index, idx, nc::Axis::COL);
-    }
-    // std::cout<<"candidate_index"<<candidate_index<<std::endl;
-    return candidate_index;
-};
-
-void createSampler(int num_samples, nc::NdArray<float> &sampler, nc::NdArray<float>&tsampler)
-{
-    sampler = nc::linspace<float>(0,1,num_samples);
-    tsampler = nc::ones<float>(1, num_samples) - sampler;
-};
-
-template<typename dtype>
-nc::NdArray<dtype> getCandScore(nc::NdArray<dtype>cand_x, nc::NdArray<dtype>cand_y, nc::NdArray<dtype> heatmap, int num_samples)
-{   
-    auto cand_x_floor = nc::floor(cand_x);
-    auto cand_x_ceil = nc::ceil(cand_x);
-    auto cand_y_floor = nc::floor(cand_y);
-    auto cand_y_ceil = nc::ceil(cand_y);
-    auto heatmap_lu = getSlicefromIndexArray(heatmap, cand_x_floor, cand_y_floor);
-    auto heatmap_ld = getSlicefromIndexArray(heatmap, cand_x_ceil, cand_y_floor);
-    auto heatmap_ru = getSlicefromIndexArray(heatmap, cand_x_floor, cand_y_ceil);
-    auto heatmap_rd = getSlicefromIndexArray(heatmap, cand_x_ceil, cand_y_ceil);
-    auto line_scores = heatmap_lu*(cand_x_ceil-cand_x)*(cand_y_ceil-cand_y) +
-                        heatmap_ld*(cand_x-cand_x_floor)*(cand_y_ceil-cand_y) +
-                        heatmap_ru*(cand_x_ceil-cand_x)*(cand_y-cand_y_floor) +
-                        heatmap_rd*(cand_x-cand_x_floor)*(cand_y-cand_y_floor);
-    // std::cout<<heatmap_lu.shape()<<std::endl;
-    line_scores = line_scores.reshape(-1, num_samples);
-
-    return line_scores;
-    // auto line_scores = 
-
-};
-
 
 void postprocess_lines(
                         // vector<float>* input_heatmap,
                         // vector<FeaturePts>* input_pts,
-                        nc::NdArray<float> input_heatmap,
-                        nc::NdArray<int> input_pts,
+                        float* input_heatmap,
+                        Eigen::MatrixXi input_pts,
                         vector<float>* input_desc,
                         vector<int32_t> &out_lines,
                         vector<FeatureLines> &res_lines
@@ -355,70 +301,98 @@ void postprocess_lines(
                         // ,vector<float>& out_desc
                         )
 {
-    static TimerKeeper postline_cost("线特征后处理 平均用时: ");
-    
-    int num_samples = NUM_SAMPLES;
+    int numSamples = NUM_SAMPLES;
     // int num_candidate_junc = input_pts->size();
+
     // int num_candidate_junc = input_pts->size();
-    // int num_candidate_junc = input_pts.numrows();
-    // const int candidate_num = num_candidate_junc*(num_candidate_junc-1)/2;
+    int num_candidate_junc = input_pts.rows();
+    const int candidate_num = num_candidate_junc*(num_candidate_junc-1)/2;
+    
+    Eigen::MatrixXi candidate_map(num_candidate_junc, num_candidate_junc);
+    Eigen::MatrixXi candidate_index(candidate_num, 2);
+    Eigen::MatrixXi candidate_junc_start(candidate_num, 2);
+    Eigen::MatrixXi candidate_junc_end(candidate_num, 2);
+    int num = 0;
+    
+    static TimerKeeper post_lines_cost("CNN后处理--线特征后处理（利用候选端点和线概率图）平均用时: ");
+    post_lines_cost.mark();
+    for (int i = 0; i < num_candidate_junc; ++i) {
+        for (int j = i+1; j < num_candidate_junc; ++j) {
+            candidate_map(i, j) = 1;
+            candidate_index(num, 0) = i;
+            candidate_index(num, 1) = j;
+            candidate_junc_start(num, 0) = input_pts(i, 0);
+            candidate_junc_start(num, 1) = input_pts(i, 1);
+            candidate_junc_end(num, 0) = input_pts(j, 0);
+            candidate_junc_end(num, 1) = input_pts(j, 1);
+            num++;
+        }
+    }
+    post_lines_cost.average_time_cost();
+    Eigen::MatrixXd cand_x(candidate_num, NUM_SAMPLES);
+    Eigen::MatrixXd cand_y(candidate_num, NUM_SAMPLES);
+    Eigen::MatrixXi startx = candidate_junc_start.col(0);
+    cand_x = candidate_junc_start.col(0).cast<double>()*sampler + candidate_junc_end.col(0).cast<double>()*sampler1;
+    cand_y = candidate_junc_start.col(1).cast<double>()*sampler + candidate_junc_end.col(1).cast<double>()*sampler1;
+    // cand_x和cand_y为待筛选的线段采样点，维度均为candidate_num*NUM_SAMPLES，代表candidate_num条线段上NUM_SAMPLES个点的横纵坐标
 
-    nc::NdArray<float> sampler(1, num_samples);
-    nc::NdArray<float> tsampler(1, num_samples);
-    createSampler(num_samples, sampler, tsampler);
+    Eigen::MatrixXi cand_x_floor = (cand_x.array().floor()).cast<int>();
+    Eigen::MatrixXi cand_x_ceil = (cand_x.array().ceil()).cast<int>();
+    Eigen::MatrixXi cand_y_floor = (cand_y.array().floor()).cast<int>();
+    Eigen::MatrixXi cand_y_ceil = (cand_y.array().ceil()).cast<int>();
     
-    // 创建一个示例下标矩阵
-    int num_candidate_junc = input_pts.numRows();
-    nc::NdArray<int> candidate_map = nc::triu(nc::ones<int>(num_candidate_junc, num_candidate_junc), 1);
-    
-    // std::cout<<"candidate map: "<<candidate_map<<std::endl;
-    auto candidate_index = createCandIndex(num_candidate_junc);
-    auto candidate_junc_start = input_pts(candidate_index.row(0), input_pts.cSlice()).astype<float>();  // N*2的开始点集合
-    auto candidate_junc_end = input_pts(candidate_index.row(1), input_pts.cSlice()).astype<float>();    // N*2的末端点集合
-    //******************************************** 268ms
-    // postline_cost.average_time_cost();  
-    // auto cand_x = nc::dot(candidate_junc_start(candidate_junc_start.rSlice(), 0), sampler);
-    
-    postline_cost.mark();
-    auto cand_x = nc::dot(candidate_junc_start(candidate_junc_start.rSlice(), 0), sampler) +
-                 nc::dot(candidate_junc_end(candidate_junc_start.rSlice(), 0), tsampler); //N*numsamples的采样点横坐标
-    
-    auto cand_y = nc::dot(candidate_junc_start(candidate_junc_start.rSlice(), 1), sampler) +
-                 nc::dot(candidate_junc_end(candidate_junc_start.rSlice(), 1), tsampler); //N*n
-    // nc::NdArray<float> cand_x = nc::NdArray<float>(cand_x.data(), cand_x.rows(), juncs.cols());
-    postline_cost.average_time_cost();
-    cand_x = nc::flatten(cand_x);
-    cand_y = nc::flatten(cand_y);
-    
-    //******************************************** 1251ms
-    static TimerKeeper postlinescore_cost("分数获取 平均用时: ");
-    postlinescore_cost.mark();
-    auto cand_scores = getCandScore(cand_x, cand_y, input_heatmap, num_samples);
-    // std::cout<<cand_scores.shape()<<std::endl;
-    auto inlier_count = nc::sum(nc::where(cand_scores>DETECT_THRESH,1,0), nc::Axis::COL);
-    auto inlier_rate = inlier_count.astype<double>()/static_cast<double>(num_samples);
-    auto line_scores = nc::mean(cand_scores, nc::Axis::COL);
-    // std::cout<<line_scores<<inlier_rate<<std::endl;
+    // Eigen::Matrix<Eigen::Index, Eigen::Dynamic, Eigen::Dynamic> cand_x_floor_index = cand_x_floor.cast<Eigen::Index>();
+    // Eigen::Matrix<Eigen::Index, Eigen::Dynamic, Eigen::Dynamic> cand_x_ceil_index = cand_x_ceil.cast<Eigen::Index>();
+    // Eigen::Matrix<Eigen::Index, Eigen::Dynamic, Eigen::Dynamic> cand_y_floor_index = cand_y_floor.cast<Eigen::Index>();
+    // Eigen::Matrix<Eigen::Index, Eigen::Dynamic, Eigen::Dynamic> cand_y_ceil_index = cand_y_ceil.cast<Eigen::Index>();
 
-    auto score_mask = nc::where(line_scores>static_cast<double>(DETECT_THRESH), 1, 0);
-    auto inlier_mask = nc::where(inlier_rate>INLIER_THRESH, 1, 0);
-    auto mask = score_mask*inlier_mask;
-    // nc::NdArray<int> indices = nc::where(inlier_rate>inlier_thresh);
-    auto [rows, cols] = nc::nonzero(mask);
-    // std::cout<<"candidate_index"<<candidate_index<<"mask"<<mask<<std::endl;
-    auto detect_junc_index = candidate_index(candidate_index.rSlice(), cols);   
-    // detect_junc_index = detect_junc_index.transpose();  //detect_index为num_lines*2的矩阵，每一行代表一个起始点和一个末端点在pts中的行索引
-    // std::cout<<"res"<<detect_junc_index<<std::endl;
-    auto detect_junc_start = detect_junc_index(0, detect_junc_index.cSlice());
-    auto detect_junc_end = detect_junc_index(1, detect_junc_index.cSlice());
+    // Eigen::Index cand_x_ceil_index = cand_x_ceil.cast<Eigen::Index>();
+    // Eigen::Index cand_y_floor_index = cand_y_floor.cast<Eigen::Index>();
+    // Eigen::Index cand_y_ceil_index = cand_y_ceil.cast<Eigen::Index>();
 
-    auto line_start_pts = input_pts(detect_junc_start, input_pts.cSlice());
-    auto line_end_pts = input_pts(detect_junc_end, input_pts.cSlice()); //num_lines*2的矩阵，
-    std::cout<<line_start_pts.shape()<<std::endl;
-    
-    postlinescore_cost.average_time_cost();
-}
 
+    // 思路：将cand_x/y_floor/ceil转换为下标矩阵cand_index_lu和cand_indexru等
+    // 第一种方法：重复利用score vector，多操作放入循环
+    // Eigen::VectorXd score(NUM_SAMPLES);
+    // for (int i=0; i<candidate_num; i++)
+    // {
+    //     for (int j=0; j<NUM_SAMPLES; j++)
+    //     {
+    //         scores(j) = input_heatmap(cand_x_floor(i,j), cand_y_floor(i,j))*(cand_x_ceil(i,j) - cand_x(i,j))*(cand_y_ceil(i,j) - cand_y(i,j)) +
+    //         input_heatmap(cand_x_floor(i,j), cand_y_ceil(i,j))*(cand_x_ceil(i,j) - cand_x(i,j))*(cand_w(i,j) - cand_w_floor(i,j)) +
+    //         input_heatmap(cand_x_ceil(i,j), cand_y_floor(i,j))*(cand_x(i,j) - cand_x_floor(i,j))*(cand_y_ceil(i,j) - cand_y(i,j)) +
+    //         input_heatmap(cand_x_ceil(i,j), cand_y_ceil(i,j))*(cand_x(i,j) - cand_x_floor(i,j))*(cand_y(i,j) - cand_y_floor(i,j))
+    //     }
+    //     Eigen::VectorXd
+    // } 
+    // Eigen::VectorXd linescores = scores.rowwise().mean();
+    // 第二种方法：用Matrix整体计算，减少循环中的计算量
+    vector<FeatureLines> cand_lines;
+    Eigen::VectorXf scores(NUM_SAMPLES);
+    float line_score;
+    int count;
+    float inlier_rate;
+    // 指针下：heatmap(i, j)对应于 *(input_heatmap+i*Wc+j)
+    // 从cand_x_*中获取i，从cand_y_*中获取j
+    for (int i=0; i<candidate_num; i++)
+    {
+        for (int j=0; j<NUM_SAMPLES; j++)
+        {
+            scores(j) = *(input_heatmap+Wc*cand_x_floor(i,j) + cand_y_floor(i,j))*(cand_x_ceil(i,j) - cand_x(i,j))*(cand_y_ceil(i,j) - cand_y(i,j)) +
+            *(input_heatmap+Wc*cand_x_floor(i,j) + cand_y_ceil(i,j))*(cand_x_ceil(i,j) - cand_x(i,j))*(cand_y(i,j) - cand_y_floor(i,j)) +
+            *(input_heatmap+Wc*cand_x_ceil(i,j) + cand_y_floor(i,j))*(cand_x(i,j) - cand_x_floor(i,j))*(cand_y_ceil(i,j) - cand_y(i,j)) +
+            *(input_heatmap+Wc*cand_x_ceil(i,j) + cand_y_ceil(i,j))*(cand_x(i,j) - cand_x_floor(i,j))*(cand_y(i,j) - cand_y_floor(i,j));
+        }
+        line_score = scores.array().mean();
+        count = (scores.array() > DETECT_THRESH).count();
+        inlier_rate = float(count)/NUM_SAMPLES;
+        if (line_score > DETECT_THRESH && inlier_rate > INLIER_THRESH)
+        {
+            FeatureLines tmp_line(candidate_junc_start(i,0), candidate_junc_start(i,1), candidate_junc_end(i,0), candidate_junc_end(i,1));
+            cand_lines.push_back(tmp_line);
+        }
+    } 
+    res_lines = cand_lines;
     // Eigen::VectorXd linescores = scores.rowwise().mean();
     // Eigen::VectorXd filteredVector = (linescores.array() > DETECT_THRESH).select(linescores, 0.0);
 
@@ -450,6 +424,7 @@ void postprocess_lines(
     // cand_samples_h = cand_samples_h.min(Height - 1).max(0);
     // cand_samples_w = cand_samples_w.min(Width - 1).max(0);
     
+};
 
 
 // { 

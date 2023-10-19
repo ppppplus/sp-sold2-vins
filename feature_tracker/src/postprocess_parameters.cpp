@@ -12,7 +12,7 @@ int Junction_Channel;
 float NMS_THRESH;
 float PTS_SELECT_THRESH;
 float DETECT_THRESH;
-float INLIER_THRESH;
+double INLIER_THRESH;
 int NUM_SAMPLES;
 int NMS_DIST;
 int TOPK;

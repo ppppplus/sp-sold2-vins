@@ -18,6 +18,8 @@
 #include <opencv2/features2d/features2d.hpp>
 #include<Eigen/Core>
 #include<Eigen/Dense>
+#include "NumCpp.hpp"
+
 
 #include "postprocess_parameters.h"
 
@@ -106,11 +108,21 @@ void postprocess_pts(vector<float>* input_junction,
                         // vector<int8_t>& out_desc)
 void postprocess_lines( // vector<float>* input_heatmap,
                         // vector<FeaturePts>* input_pts,shuang
-                        float* input_heatmap,
-                        Eigen::MatrixXi input_pts,
+                        nc::NdArray<float> input_heatmap,
+                        nc::NdArray<int> input_pts,
                         vector<float>* input_desc,
                         vector<int32_t> &out_lines,
                         // vector<float> &out_scores
                         vector<FeatureLines> &res_lines
                         );
+template<typename dtype>
+nc::NdArray<dtype> getSlicefromIndexArray(nc::NdArray<dtype> matrix, nc::NdArray<dtype> index1, nc::NdArray<dtype> index2);
+
+
+nc::NdArray<int> createCandIndex(int num_candidate_junc);
+
+void createSampler(int num_samples, nc::NdArray<float> &sampler, nc::NdArray<float>&tsampler);
+
+template<typename dtype>
+nc::NdArray<dtype> getCandScore(nc::NdArray<dtype>cand_x, nc::NdArray<dtype>cand_y, nc::NdArray<dtype> heatmap, int num_samples);
 #endif
