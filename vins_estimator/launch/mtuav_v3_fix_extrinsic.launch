@@ -4,7 +4,7 @@
     <arg name="vins_path" default = "$(find feature_tracker)/../" />
     <arg name="dataset" default="mtuav_hz5G" />
 
-    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find plvins_estimator)/../config/vins_rviz_config.rviz" />
+    <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find plvins_estimator)/../config/vins_rviz_config.rviz" />
 
     <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker_node.py" output="log" >
         <param name="config_path" type="string" value="$(arg feature_config_path)" />
@@ -12,7 +12,7 @@
 
     <node name="linefeature_tracker" pkg="feature_tracker" type="linefeature_tracker_node.py" output="log">
         <param name="config_path" type="string" value="$(arg feature_config_path)" />
-    </node>    
+    </node>     -->
 
     <node name="plvins_estimator" pkg="plvins_estimator" type="plvins_estimator" output="screen">
        <param name="config_file" type="string" value="$(arg config_path)" />

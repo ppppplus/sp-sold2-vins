@@ -13,13 +13,13 @@ image_height: 800
 distortion_parameters:
    k1: 8.4479988187990004e-02
    k2: -8.2715949932212887e-02
-   p1: 9.2522968667606312e+02
-   p2: 3.9723800223006913e+02
+   p1: 0
+   p2: 0
 projection_parameters:
    fx: 9.2544856424722730e+02
    fy: 6.1276180358215265e+02
-   cx: 3.630e+02
-   cy: 2.481e+02
+   cx: 640
+   cy: 400
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
@@ -55,7 +55,7 @@ fisheye: 0              # if using fisheye, trun on it. A circle mask will be lo
 
 #optimization parameters
 max_solver_time: 0.06  # max solver itration time (ms), to guarantee real time
-max_num_iterations: 10   # max solver itrations, to guarantee real time
+max_num_iterations: 8   # max solver itrations, to guarantee real time
 keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
 
 #imu parameters       The more accurate parameters you provide, the better performance
