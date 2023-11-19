@@ -367,26 +367,56 @@ void postprocess_lines(
     nc::NdArray<float> tsampler(1, num_samples);
     createSampler(num_samples, sampler, tsampler);
     
+    
     // 创建一个示例下标矩阵
     int num_candidate_junc = input_pts.numRows();
     nc::NdArray<int> candidate_map = nc::triu(nc::ones<int>(num_candidate_junc, num_candidate_junc), 1);
     
     // std::cout<<"candidate map: "<<candidate_map<<std::endl;
     auto candidate_index = createCandIndex(num_candidate_junc);
-    auto candidate_junc_start = input_pts(candidate_index.row(0), input_pts.cSlice()).astype<float>();  // N*2的开始点集合
-    auto candidate_junc_end = input_pts(candidate_index.row(1), input_pts.cSlice()).astype<float>();    // N*2的末端点集合
+    // auto candidate_junc_start = input_pts(candidate_index.row(0), input_pts.cSlice()).astype<float>();  // N*2的开始点集合
+    // auto candidate_junc_end = input_pts(candidate_index.row(1), input_pts.cSlice()).astype<float>();    // N*2的末端点集合
+    auto candidate_junc_start0 = input_pts(candidate_index.row(0), 0).astype<float>();    // N*1的起始点横坐标
+    auto candidate_junc_start1 = input_pts(candidate_index.row(0), 1).astype<float>();    // N*1的起始点纵坐标
+    auto candidate_junc_end0 = input_pts(candidate_index.row(0), 0).astype<float>();    // N*1的末端点横坐标
+    auto candidate_junc_end1 = input_pts(candidate_index.row(0), 1).astype<float>();    // N*1的末端点纵坐标
     //******************************************** 268ms
     // postline_cost.average_time_cost();  
     // auto cand_x = nc::dot(candidate_junc_start(candidate_junc_start.rSlice(), 0), sampler);
+    float* sampler_array = sampler.data();
+    float* tsampler_array = tsampler.data();
+    Eigen::MatrixXf samplere = Eigen::Map<Eigen::MatrixXf>(sampler_array, sampler.shape().rows, sampler.shape().cols);
+    Eigen::MatrixXf tsamplere = Eigen::Map<Eigen::MatrixXf>(tsampler_array, tsampler.shape().rows, tsampler.shape().cols);
+
     
+    Eigen::MatrixXf cjs0(candidate_junc_start0.shape().rows, candidate_junc_start0.shape().cols);
+    Eigen::MatrixXf cjs1(candidate_junc_start1.shape().rows, candidate_junc_start0.shape().cols);
+    Eigen::MatrixXf cje0(candidate_junc_end0.shape().rows, candidate_junc_end0.shape().cols);
+    Eigen::MatrixXf cje1(candidate_junc_end1.shape().rows, candidate_junc_end1.shape().cols);
+    // Eigen::MatrixXf eigenb(b.shape().rows, b.shape().cols);
+    float* cjs0_array = candidate_junc_start0.data();
+    float* cjs1_array = candidate_junc_start1.data();
+    float* cje0_array = candidate_junc_end0.data();
+    float* cje1_array = candidate_junc_end1.data();
+    cjs0 = Eigen::Map<Eigen::MatrixXf>(cjs0_array, candidate_junc_start0.shape().rows, candidate_junc_start0.shape().cols);
+    cjs1 = Eigen::Map<Eigen::MatrixXf>(cjs1_array, candidate_junc_start1.shape().rows, candidate_junc_start1.shape().cols);
+    cje0 = Eigen::Map<Eigen::MatrixXf>(cje0_array, candidate_junc_end0.shape().rows, candidate_junc_end0.shape().cols);
+    cje1 = Eigen::Map<Eigen::MatrixXf>(cje1_array, candidate_junc_end1.shape().rows, candidate_junc_end1.shape().cols);
     postline_cost.mark();
-    auto cand_x = nc::dot(candidate_junc_start(candidate_junc_start.rSlice(), 0), sampler) +
-                 nc::dot(candidate_junc_end(candidate_junc_start.rSlice(), 0), tsampler); //N*numsamples的采样点横坐标
-    
-    auto cand_y = nc::dot(candidate_junc_start(candidate_junc_start.rSlice(), 1), sampler) +
-                 nc::dot(candidate_junc_end(candidate_junc_start.rSlice(), 1), tsampler); //N*n
-    // nc::NdArray<float> cand_x = nc::NdArray<float>(cand_x.data(), cand_x.rows(), juncs.cols());
+    Eigen::MatrixXf cand_xe = cjs0*samplere+cje0*tsamplere;
+    Eigen::MatrixXf cand_ye = cjs1*samplere+cje1*tsamplere;
+    nc::NdArray<float> cand_x = nc::NdArray<float>(cand_xe.data(), cand_xe.rows(), cand_xe.cols());
+    nc::NdArray<float> cand_y = nc::NdArray<float>(cand_ye.data(), cand_ye.rows(), cand_ye.cols());
     postline_cost.average_time_cost();
+    // auto cand_x = nc::dot(candidate_junc_start(candidate_junc_start.rSlice(), 0), sampler) +
+    //              nc::dot(candidate_junc_end(candidate_junc_start.rSlice(), 0), tsampler); //N*numsamples的采样点横坐标
+    
+    // auto cand_y = nc::dot(candidate_junc_start(candidate_junc_start.rSlice(), 1), sampler) +
+    //              nc::dot(candidate_junc_end(candidate_junc_start.rSlice(), 1), tsampler); //N*n
+    // nc::NdArray<float> cand_x = nc::NdArray<float>(cand_x.data(), cand_x.rows(), juncs.cols());
+
+
+    
     cand_x = nc::flatten(cand_x);
     cand_y = nc::flatten(cand_y);
     
