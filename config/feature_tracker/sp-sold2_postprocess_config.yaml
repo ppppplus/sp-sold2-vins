@@ -1,0 +1,16 @@
+%YAML:1.0
+map_topic: "/feature_map"
+pts_topic: "/feature_pts"
+
+grid_size: 8
+nms_thresh: 0.0153846
+pts_select_thresh: -10
+nms_dist: 4
+topk: 800
+candk: 300
+H: 752
+W: 480
+
+detect_thresh: 0.2
+inlier_thresh: 0.8
+num_samples: 30
