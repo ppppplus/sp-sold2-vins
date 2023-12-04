@@ -41,8 +41,8 @@ line_feature_cfg:
 camera_cfg:
         model_type: PINHOLE
         camera_name: camera
-        image_height: 752
-        image_width: 480
+        image_height: 480
+        image_width: 752
         distortion_parameters:
                 k1: -2.917e-01
                 k2: 8.228e-02
