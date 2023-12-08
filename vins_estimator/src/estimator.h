@@ -23,6 +23,9 @@
 #include <unordered_map>
 #include <queue>
 #include <opencv2/core/eigen.hpp>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 
 struct RetriveData
 {
@@ -48,6 +51,7 @@ class Estimator
     Estimator();
 
     void setParameter();
+    void createOutput();
 
     // interface
     void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
@@ -172,5 +176,9 @@ class Estimator
     Vector3d relo_relative_t;
     Quaterniond relo_relative_q;
     double relo_relative_yaw;
+
+    //output variable
+    std::string output_dir;
+    std::string time_stamp;
 
 };

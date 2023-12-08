@@ -12,7 +12,7 @@ const double FOCAL_LENGTH = 460.0;
 const int WINDOW_SIZE = 10;
 const int NUM_OF_CAM = 1;
 const int NUM_OF_F = 1000;
-const int LINE_MIN_OBS = 5;
+const int LINE_MIN_OBS = 3;
 const double LOOP_INFO_VALUE = 50.0;
 //#define DEPTH_PRIOR
 //#define GT
@@ -47,6 +47,8 @@ extern std::string VOC_FILE;
 extern std::string CAM_NAMES;
 extern std::string IMAGE_TOPIC;
 extern std::string IMU_TOPIC;
+
+extern std::string DATASET_NAME;
 
 void readParameters(ros::NodeHandle &n);
 

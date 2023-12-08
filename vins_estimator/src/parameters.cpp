@@ -28,6 +28,7 @@ std::string IMAGE_TOPIC;
 std::string IMU_TOPIC;
 int IMAGE_ROW, IMAGE_COL;
 std::string VINS_FOLDER_PATH;
+std::string DATASET_NAME;
 int MAX_KEYFRAME_NUM;
 
 template <typename T>
@@ -48,6 +49,7 @@ T readParam(ros::NodeHandle &n, std::string name)
 
 void readParameters(ros::NodeHandle &n)
 {
+    DATASET_NAME = readParam<std::string>(n, "dataset");
     std::string config_file;
     config_file = readParam<std::string>(n, "config_file");
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
@@ -69,11 +71,11 @@ void readParameters(ros::NodeHandle &n)
     MIN_PARALLAX = MIN_PARALLAX / FOCAL_LENGTH;
 
     fsSettings["output_path"] >> VINS_RESULT_PATH;
-    VINS_RESULT_PATH = VINS_FOLDER_PATH + VINS_RESULT_PATH;
-    std::ofstream foutC("/home/healer/EuRoC/PL-VINS/outout/tum_plvins.txt", std::ios::out);
-    foutC.close();
-    std::ofstream foutC1("/home/healer/EuRoC/PL-VINS/outout/evo_plvins.txt", std::ios::out);
-    foutC1.close();
+    // VINS_RESULT_PATH = VINS_FOLDER_PATH + VINS_RESULT_PATH;
+    // std::ofstream foutC("/home/healer/EuRoC/PL-VINS/outout/tum_plvins.txt", std::ios::out);
+    // foutC.close();
+    // std::ofstream foutC1("/home/healer/EuRoC/PL-VINS/outout/evo_plvins.txt", std::ios::out);
+    // foutC1.close();
 
     ACC_N = fsSettings["acc_n"];
     ACC_W = fsSettings["acc_w"];

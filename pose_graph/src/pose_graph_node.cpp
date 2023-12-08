@@ -62,6 +62,9 @@ nav_msgs::Path no_loop_path;
 std::string BRIEF_PATTERN_FILE;
 std::string POSE_GRAPH_SAVE_PATH;
 std::string VINS_RESULT_PATH;
+std::string VINS_FOLDER_PATH;
+std::string DATASET_NAME;
+std::string TIME_STAMP;
 CameraPoseVisualization cameraposevisual(1, 0, 0, 1);
 Eigen::Vector3d last_t(-100, -100, -100);
 double last_image_time = -1;
@@ -456,14 +459,21 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "pose_graph");
     ros::NodeHandle n("~");
     posegraph.registerPub(n);
-
     // read param
+    n.getParam("dataset", DATASET_NAME);
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    TIME_STAMP = std::to_string(timestamp);
+
     n.getParam("visualization_shift_x", VISUALIZATION_SHIFT_X);
     n.getParam("visualization_shift_y", VISUALIZATION_SHIFT_Y);
     n.getParam("skip_cnt", SKIP_CNT);
     n.getParam("skip_dis", SKIP_DIS);
+    n.getParam("vins_folder", VINS_FOLDER_PATH);
+    // cout<<"vins_folder: "<<VINS_FOLDER_PATH<<endl;
     std::string config_file;
     n.getParam("config_file", config_file);
+    // cout<<"config_path: "<<config_file<<endl;
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())
     {
@@ -474,20 +484,19 @@ int main(int argc, char **argv)
     cameraposevisual.setScale(camera_visual_size);
     cameraposevisual.setLineWidth(camera_visual_size / 10.0);
 
-
     LOOP_CLOSURE = fsSettings["loop_closure"];
+    // ROS_INFO("loop:%d", LOOP_CLOSURE);
     std::string IMAGE_TOPIC;
     int LOAD_PREVIOUS_POSE_GRAPH;
     if (LOOP_CLOSURE)
     {
         ROW = fsSettings["image_height"];
         COL = fsSettings["image_width"];
-        std::string pkg_path = ros::package::getPath("pose_graph");
-        string vocabulary_file = pkg_path + "/../support_files/brief_k10L6.bin";
-        cout << "vocabulary_file" << vocabulary_file << endl;
+        // std::string pkg_path = ros::package::getPath("pose_graph");
+        std::string vocabulary_file = VINS_FOLDER_PATH + "/../support_files/brief_k10L6.bin";
+        cout << "vocabulary_file: " << vocabulary_file << endl;
         posegraph.loadVocabulary(vocabulary_file);
-
-        BRIEF_PATTERN_FILE = pkg_path + "/../support_files/brief_pattern.yml";
+        BRIEF_PATTERN_FILE = VINS_FOLDER_PATH + "/../support_files/brief_pattern.yml";
         cout << "BRIEF_PATTERN_FILE" << BRIEF_PATTERN_FILE << endl;
         m_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(config_file.c_str());
 
@@ -495,22 +504,22 @@ int main(int argc, char **argv)
         fsSettings["pose_graph_save_path"] >> POSE_GRAPH_SAVE_PATH;
         fsSettings["output_path"] >> VINS_RESULT_PATH;
         fsSettings["save_image"] >> DEBUG_IMAGE;
-
         // create folder if not exists
         FileSystemHelper::createDirectoryIfNotExists(POSE_GRAPH_SAVE_PATH.c_str());
         FileSystemHelper::createDirectoryIfNotExists(VINS_RESULT_PATH.c_str());
 		
-		 VISUALIZE_IMU_FORWARD = fsSettings["visualize_imu_forward"];
+        VISUALIZE_IMU_FORWARD = fsSettings["visualize_imu_forward"];
         LOAD_PREVIOUS_POSE_GRAPH = fsSettings["load_previous_pose_graph"];
         FAST_RELOCALIZATION = fsSettings["fast_relocalization"];
-        VINS_RESULT_PATH = VINS_RESULT_PATH + "/vins_result_loop.csv";
+        VINS_RESULT_PATH = VINS_RESULT_PATH + "/" + DATASET_NAME;
+        cout<<"VINS_RESULT_PATH: "<<VINS_RESULT_PATH<<endl;
         // std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
         // fout.close();
         fsSettings.release();
-        std::ofstream foutC("/home/healer/catkin_PLVINS/src/PL-VINS/Trajactory/tum_fast_plvins_loop.txt", std::ios::out);
-        foutC.close();
-        std::ofstream foutC1("/home/healer/catkin_PLVINS/src/PL-VINS/Trajactory/evo_fast_plvins_loop.txt", std::ios::out);
-        foutC1.close();     
+        // std::ofstream foutC("/home/healer/catkin_PLVINS/src/PL-VINS/Trajactory/tum_fast_plvins_loop.txt", std::ios::out);
+        // foutC.close();
+        // std::ofstream foutC1("/home/healer/catkin_PLVINS/src/PL-VINS/Trajactory/evo_fast_plvins_loop.txt", std::ios::out);
+        // foutC1.close();     
        
 
         if (LOAD_PREVIOUS_POSE_GRAPH)

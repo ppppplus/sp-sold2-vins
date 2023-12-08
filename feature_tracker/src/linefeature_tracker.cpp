@@ -40,7 +40,7 @@ void LineFeatureTracker::NearbyLineTracking(const vector<Line> forw_lines, const
 
     float th = 3.1415926/9;
     float dth = 30 * 30;
-    for (size_t i = 0; i < forw_lines.size(); ++i) {
+    for (size_t i = 0; i < forw_lines.sicur_ptsze(); ++i) {
         Line lf = forw_lines.at(i);
         Line best_match;
         size_t best_j = 100000;
@@ -169,7 +169,9 @@ void LineFeatureTracker::readImage(const cv::Mat &_img)
     lineDetector ld(lineMethod, isROI, 0, (float)img.cols, 0, (float)img.rows);
     //ROS_INFO("ld inition costs: %fms", t_li.toc());
     TicToc t_ld;
+    // ROS_INFO("line detect...");
     forwframe_->vecLine = ld.detect(img);
+    ROS_INFO("line_num: %d", curframe_->vecLine.size());
 
     for (size_t i = 0; i < forwframe_->vecLine.size(); ++i) {
         if(first_img)
@@ -477,8 +479,7 @@ void LineFeatureTracker::readImage(const cv::Mat &_img)
     // lsd_->detect( img, lsd, 2, 2 );
 
     sum_time += t_li.toc();
-   ROS_INFO("line detect costs: %fms", t_li.toc());
-
+   ROS_INFO("line detect costs: %fms, line num: %d", t_li.toc(), curframe_->vecLine.size());
     Mat lbd_descr, keylbd_descr;
     // step 2: lbd descriptor
     TicToc t_lbd;

@@ -20,6 +20,33 @@ void Estimator::setParameter()
 //    lineProjectionFactor::sqrt_info =  Matrix2d::Identity();
 
     baseline_ = BASE_LINE;
+    output_dir = VINS_RESULT_PATH + "/" + DATASET_NAME;
+}
+
+void Estimator::createOutput()
+{   
+    if (access(output_dir.c_str(), F_OK) != 0) {
+        try{
+            mkdir(output_dir.c_str(), 0777);
+        }
+        catch(...){
+            std::cerr << "Failed to create directory: " << output_dir << std::endl;
+        }
+    }
+    // if(!std::filesystem::exists(output_dir))
+    // {   
+    //     try{
+    //         std::filesystem::create_directories(output_dir)
+    //     }
+    //     catch(...){
+    //         
+    //     }
+    // }
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    ROS_INFO("Results will be saved in: %s", output_dir.c_str());
+    time_stamp = std::to_string(timestamp);
+    
 }
 
 void Estimator::clearState()
@@ -543,7 +570,7 @@ bool Estimator::initialStructure()
         //ROS_WARN("IMU variation %f!", var);
         if(var < 0.25)
         {
-            ROS_INFO("IMU excitation not enouth!");
+            ROS_INFO("IMU excitation not enough!");
             //return false;
         }
     }
@@ -1085,14 +1112,14 @@ bool Estimator::failureDetection()
     }
     */
     Vector3d tmp_P = Ps[WINDOW_SIZE];
-    if ((tmp_P - last_P).norm() > 5)
+    if ((tmp_P - last_P).norm() > 100)
     {
-        ROS_INFO(" big translation");
+        ROS_WARN(" big translation: %f", (tmp_P - last_P).norm());
         return true;
     }
-    if (abs(tmp_P.z() - last_P.z()) > 1)
+    if (abs(tmp_P.z() - last_P.z()) > 100)
     {
-        ROS_INFO(" big z translation");
+        ROS_WARN(" big z translation: last%f, now%f", last_P.z(), tmp_P.z());
         return true; 
     }
     Matrix3d tmp_R = Rs[WINDOW_SIZE];

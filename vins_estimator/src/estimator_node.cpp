@@ -355,7 +355,7 @@ void process()
             header.frame_id = "world";
             cur_header = header;
             m_loop_drift.lock();
-
+            // ROS_DEBUG("%s", estimator.output_dir + "/" + "no_loop_" + estimator.time_stamp + ".txt");
             pubOdometry(estimator, header, relocalize_t, relocalize_r);
             pubKeyPoses(estimator, header, relocalize_t, relocalize_r);
             pubCameraPose(estimator, header, relocalize_t, relocalize_r);
@@ -383,9 +383,10 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "vins_estimator");
     ros::NodeHandle n("~");
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
     readParameters(n);
     estimator.setParameter();
+    estimator.createOutput();
 #ifdef EIGEN_DONT_PARALLELIZE
     ROS_DEBUG("EIGEN_DONT_PARALLELIZE");
 #endif

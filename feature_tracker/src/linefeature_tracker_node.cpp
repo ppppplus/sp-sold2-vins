@@ -27,6 +27,7 @@ double sum_time = 0.0;
 double mean_time = 0.0;
 void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
+    // ROS_INFO("get image");
     if(first_image_flag)
     {
         first_image_flag = false;
@@ -36,6 +37,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     // frequency control, 如果图像频率低于一个值
     if (round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)) <= FREQ)
     {
+        
         PUB_THIS_FRAME = true;
         // reset the frequency control
         if (abs(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time) - FREQ) < 0.01 * FREQ)
@@ -48,13 +50,13 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         PUB_THIS_FRAME = false;
 
     TicToc t_r;
-
+    // ROS_INFO("pub this frame %d, %d, %f", PUB_THIS_FRAME, first_image_flag, round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)));
     if (PUB_THIS_FRAME)
     {
     cv_bridge::CvImageConstPtr ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
     cv::Mat show_img = ptr->image;
-//    cv::imshow("lineimg",show_img);
-//    cv::waitKey(1);
+    // cv::imshow("lineimg",show_img);
+    // cv::waitKey(1);
     
     frame_cnt++;
     trackerData.readImage(ptr->image.rowRange(0 , ROW));   // rowRange(i,j) 取图像的i～j行
@@ -103,6 +105,29 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         feature_lines->channels.push_back(v_of_endpoint);
         ROS_DEBUG("publish %f, at %f", feature_lines->header.stamp.toSec(), ros::Time::now().toSec());
         pub_img.publish(feature_lines);
+        {
+            ptr = cv_bridge::cvtColor(ptr, sensor_msgs::image_encodings::BGR8);
+
+            //cv::Mat stereo_img(ROW * NUM_OF_CAM, COL, CV_8UC3);
+            cv::Mat stereo_img = ptr->image;
+
+
+            // tmp_img = trackerData[0].cur_img;
+
+            for (unsigned int j = 0; j < trackerData.cur_lines.size(); j++)
+            {
+
+                // cv::circle(tmp_img, trackerData[i].cur_pts[j], 2, cv::Scalar(0, 255, 0), 2);
+                cv::line(stereo_img, trackerData.cur_lines[j,0], trackerData.cur_lines[j,1], cv::Scalar(0, 255, 0));
+            }
+            
+ 
+
+            //cv::imshow("vis", stereo_img);
+            //cv::waitKey(5);
+
+            pub_match.publish(ptr->toImageMsg());
+        }
 
     }
     sum_time += t_r.toc();

@@ -160,7 +160,10 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header, Eig
         relo_path.poses.push_back(pose_stamped);
         pub_relo_path.publish(relo_path);
 
-        ofstream foutC("/home/healer/catkin_PLVINS/src/PL-VINS/Trajactory/tum_fast_no_loop.txt", ios::app);
+        std::string foutC_path;
+        foutC_path = estimator.output_dir + "/" + "no_loop_" + estimator.time_stamp + ".txt";
+        // ROS_INFO("outdir %s", foutC_path);
+        ofstream foutC(foutC_path, ios::app);
         foutC.setf(ios::fixed, ios::floatfield);
         foutC.precision(0);
         foutC << header.stamp.toSec() * 1e9<< " ";
@@ -174,7 +177,9 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header, Eig
               << correct_q.z() <<endl;
         foutC.close();
 
-        ofstream foutC1("/home/healer/catkin_PLVINS/src/PL-VINS/Trajactory/evo_fast_no_loop.txt", ios::app);
+        std::string foutC1_path;
+        foutC1_path = estimator.output_dir + "/" + "evo_no_loop_" + estimator.time_stamp + ".txt";
+        ofstream foutC1(foutC1_path, ios::app);
         foutC1.setf(ios::fixed, ios::floatfield);
         foutC1.precision(9);
         foutC1 << header.stamp.toSec() << " ";

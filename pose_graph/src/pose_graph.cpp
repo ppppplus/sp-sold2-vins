@@ -164,7 +164,10 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
         //       << Q.z() << ","
         //       << endl;
         // loop_path_file.close();
-        ofstream foutC("/home/healer/catkin_PLVINS/src/PL-VINS/Trajactory/tum_fast_plvins_loop.txt", ios::app);
+        std::string foutC_path;
+        foutC_path = VINS_RESULT_PATH + "/" + "loop_" + TIME_STAMP + ".csv";
+        // ROS_INFO("outdir %s", foutC_p ath);
+        ofstream foutC(foutC_path, ios::app);
         foutC.setf(ios::fixed, ios::floatfield);
         foutC.precision(0);
         foutC << cur_kf->time_stamp * 1e9<< " ";
@@ -175,11 +178,13 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
               << Q.w() << " "
               << Q.x() << " "
               << Q.y() << " "
-              << Q.z() << " "
+              << Q.z()
               << endl;
         foutC.close();
 
-        ofstream foutC1("/home/healer/catkin_PLVINS/src/PL-VINS/Trajactory/evo_fast_plvins_loop.txt", ios::app);
+        std::string foutC1_path;
+        foutC1_path = VINS_RESULT_PATH + "/" + "evo_loop_" + TIME_STAMP + ".csv";
+        ofstream foutC1(foutC1_path, ios::app);
         foutC1.setf(ios::fixed, ios::floatfield);
         foutC1.precision(9);
         foutC1 << cur_kf->time_stamp << " ";
@@ -190,7 +195,7 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
               << Q.x() << " "
               << Q.y() << " "
               << Q.z() << " "
-              << Q.w() << " "
+              << Q.w()
               << endl;
 
         foutC1.close();
