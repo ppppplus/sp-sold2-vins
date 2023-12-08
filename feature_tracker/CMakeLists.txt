@@ -76,28 +76,28 @@ add_executable(origin_pointfeature_tracker
 target_link_libraries(origin_pointfeature_tracker ${catkin_LIBRARIES} ${OpenCV_LIBS} ${cv_bridge_LIBS} ${GPERFTOOLS_PROFILER})
 
 # line detect and match
-add_executable(origin_linefeature_tracker    
-    src/origin/linefeature_tracker_node.cpp
-    src/origin/parameters.cpp
-    src/origin/linefeature_tracker.cpp
-    src/origin/tic_toc.h
-
-    src/line_descriptor/src/binary_descriptor_custom.cpp
-    src/line_descriptor/src/binary_descriptor_matcher.cpp
-    src/line_descriptor/src/bitarray_custom.hpp
-    src/line_descriptor/src/bitops_custom.hpp
-    src/line_descriptor/src/draw_custom.cpp
-    src/line_descriptor/src/LSDDetector_custom.cpp
-    src/line_descriptor/src/precomp_custom.hpp
-    src/line_descriptor/src/types_custom.hpp
-)
+# add_executable(origin_linefeature_tracker    
+#     src/origin/linefeature_tracker_node.cpp
+#     src/origin/parameters.cpp
+#     src/origin/linefeature_tracker.cpp
+#     src/origin/tic_toc.h
+# 
+#     src/line_descriptor/src/binary_descriptor_custom.cpp
+#     src/line_descriptor/src/binary_descriptor_matcher.cpp
+#     src/line_descriptor/src/bitarray_custom.hpp
+#     src/line_descriptor/src/bitops_custom.hpp
+#     src/line_descriptor/src/draw_custom.cpp
+#     src/line_descriptor/src/LSDDetector_custom.cpp
+#     src/line_descriptor/src/precomp_custom.hpp
+#     src/line_descriptor/src/types_custom.hpp
+# )
 # /home/healer/PL-VINS/PLVINS/PL-VINS/feature_tracker
-target_link_libraries(origin_linefeature_tracker 
-${catkin_LIBRARIES} 
-${OpenCV_LIBS}
-${cv_bridge_LIBS}
-/home/nnplvio_ws/src/nn-pl-vio/feature_tracker/src/line_descriptor/lib/liblinedesc.so  # line feature
-)
+# target_link_libraries(origin_linefeature_tracker 
+# ${catkin_LIBRARIES} 
+# ${OpenCV_LIBS}
+# ${cv_bridge_LIBS}
+# /home/nnplvio_ws/src/nn-pl-vio/feature_tracker/src/line_descriptor/lib/liblinedesc.so  # line feature
+# )
 #message(STATUS "    include path: ${OpenCV_INCLUDE_DIRS}")
 #message(STATUS "    cv_bridge include path: ${cv_bridge_INCLUDE_DIRS}")
 #message(STATUS "    LIBRARIES: ${OpenCV_LIBRARIES}")

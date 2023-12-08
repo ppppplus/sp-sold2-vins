@@ -28,5 +28,8 @@
         <param name="skip_dis" type="double" value="0" />
     </node>
 
+    <node name="image_node_b" pkg="image_node_b" type="image_node_b" output="log">
+    </node>   
+
 </launch>
 

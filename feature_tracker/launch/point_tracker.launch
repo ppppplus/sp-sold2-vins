@@ -1,5 +1,5 @@
 <launch>
-    <arg name="feature_config_path" default = "$(find feature_tracker)/../config/feature_tracker/mtuav_v3_config.yaml" />
+    <arg name="feature_config_path" default = "$(find feature_tracker)/../config/feature_tracker/euroc_config.yaml" />
     <arg name="config_path" default = "$(find feature_tracker)/../config/mtuav/mtuav_v3_config_fix_extrinsic.yaml" />
     <arg name="vins_path" default = "$(find feature_tracker)/../" />
     <arg name="dataset" default="Euroc_MH_01_easy" />

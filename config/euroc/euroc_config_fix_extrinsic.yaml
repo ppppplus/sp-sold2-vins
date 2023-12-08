@@ -70,7 +70,7 @@ g_norm: 9.81007     # gravity magnitude
 #loop closure parameters
 loop_closure: 1   #if you want to use loop closure to minimize the drift, set loop_closure true and give your brief pattern file path and vocabulary file path accordingly;
                      #also give the camera calibration file same as feature_tracker node
-load_previous_pose_graph: 1 
+load_previous_pose_graph: 0
 fast_relocalization: 0 
 pose_graph_save_path: "/home/nnplvio_ws/src/nn-pl-vio/Trajactory/posegraph/" # save and load path
 
