@@ -117,6 +117,8 @@ class FeatureTracker:
 		print('*'*10 + " current frame " + '*'*10)
 		start_time = time()
 		self.forwframe_['keyPoint'], self.forwframe_['descriptor'] = self.extractor.extract(self.new_frame)
+		pts_dim = self.forwframe_['keyPoint'].shape[0]
+		desc_dim = self.forwframe_['descriptor'].shape[0]
 		# print("pts_shape: {}, desc_shape: {}".format(self.forwframe_["keyPoint"].shape, self.forwframe_["descriptor"].shape))
 
 		global run_time
@@ -161,12 +163,12 @@ class FeatureTracker:
 				self.forwframe_['PointID'][int(matches[0,k])] = self.curframe_['PointID'][int(matches[1,k])]
 
 			################### 将跟踪的点与没跟踪的点进行区分 #####################
-			vecpoint_new = np.zeros((3,0))
-			vecpoint_tracked = np.zeros((3,0))
+			vecpoint_new = np.zeros((pts_dim,0))
+			vecpoint_tracked = np.zeros((pts_dim,0))
 			pointID_new = []
 			pointID_tracked = []
-			descr_new = np.zeros((256,0))
-			descr_tracked = np.zeros((256,0))
+			descr_new = np.zeros((desc_dim,0))
+			descr_tracked = np.zeros((desc_dim,0))
 
 			for i in range(num_points):
 				if self.forwframe_['PointID'][i] == -1 :

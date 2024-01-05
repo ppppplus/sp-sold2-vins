@@ -1,5 +1,6 @@
 import numpy as np
 from utils_point.superpoint.model import SuperpointPointExtractModel, NnmPointMatchModel
+from utils_point.opencv_utils.model import ORBPointExtractModel, ORBPointMatchModel
 # from utils_point.superpoint.trt_model import TrtSuperpointPointExtractModel
 from utils_point.superglue.model import SuperGlueMatchModel
 
@@ -9,6 +10,8 @@ def create_pointextract_instance(params):
         return SuperpointPointExtractModel(params["superpoint"])
     # if extract_method == "superpoint_trt":
     #     return TrtSuperpointPointExtractModel(params["superpoint_trt"])
+    elif extract_method == "orb":
+        return ORBPointExtractModel(params)
     else:
         raise ValueError("Extract method {} is not supported!".format(extract_method))
 
@@ -18,5 +21,7 @@ def create_pointmatch_instance(params):
         return NnmPointMatchModel(params["nnm"])
     elif match_method == "superglue":
         return SuperGlueMatchModel(params["superglue"])
+    elif match_method == "orb":
+        return ORBPointMatchModel(params)
     else:
         raise ValueError("Match method {} is not supported!".format(match_method))

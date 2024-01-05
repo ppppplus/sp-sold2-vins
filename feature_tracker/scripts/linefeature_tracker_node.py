@@ -115,7 +115,7 @@ if __name__ == '__main__':
     rospy.init_node('linefeature_tracker', anonymous=False)
     
     # yamlPath = '/home/nvidia/plvins_ws/src/PL-VINS/feature_tracker/config/config.yaml'
-    yamlPath = rospy.get_param("~config_path", "/home/plus/Work/plvins_ws/src/PL-VINS/config/feature_tracker/mtuav_config.yaml")
+    yamlPath = rospy.get_param("~config_path", "/home/nnplvio_ws/src/sp-sold2-vins/config/feature_tracker/test_config.yaml")
     # print(yamlPath)
     with open(yamlPath,'rb') as f:
       # yaml文件通过---分节，多个节组合成一个列表
@@ -143,7 +143,7 @@ if __name__ == '__main__':
                                queue_size=100)
 
 
-    pub_img = rospy.Publisher("/feature_tracker/linefeature", PointCloud, queue_size=1000)
-    pub_match = rospy.Publisher("feature_tracker/linefeature_img", Image, queue_size=1000)
+    pub_img = rospy.Publisher("/linefeature_tracker/linefeature", PointCloud, queue_size=1000)
+    pub_match = rospy.Publisher("/linefeature_tracker/linefeature_img", Image, queue_size=1000)
 
     rospy.spin()

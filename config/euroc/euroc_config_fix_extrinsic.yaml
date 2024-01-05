@@ -3,7 +3,7 @@
 #common parameters
 imu_topic: "/imu0"
 image_topic: "/cam0/image_raw"
-output_path: "/home/nnplvio_ws/src/nn-pl-vio/Trajactory"         # vins outputs will be wrttento vins_folder_path + output_path
+output_path: "/home/nnplvio_ws/src/sp-sold2-vins/Trajactory"         # vins outputs will be wrttento vins_folder_path + output_path
 #camera calibration 
 model_type: PINHOLE
 camera_name: camera
@@ -72,7 +72,7 @@ loop_closure: 1   #if you want to use loop closure to minimize the drift, set lo
                      #also give the camera calibration file same as feature_tracker node
 load_previous_pose_graph: 0
 fast_relocalization: 0 
-pose_graph_save_path: "/home/nnplvio_ws/src/nn-pl-vio/Trajactory/posegraph/" # save and load path
+pose_graph_save_path: "/home/nnplvio_ws/src/sp-sold2-vins/Trajactory/posegraph/" # save and load path
 
 
 pattern_file: "/support_files/brief_pattern.yml"

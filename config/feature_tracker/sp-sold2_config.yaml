@@ -9,7 +9,7 @@ pl_feature_cfg:
 
         extract_method: "sp-sold2"    # supported: [superpoint]
         sp-sold2:
-                ckpt_path: "/home/nnplvio_ws/src/nn-pl-vio/feature_tracker/scripts/utils_pl/pretrained_models/sp-sold2.tar"
+                ckpt_path: "/home/nnplvio_ws/src/sp-sold2-vins/feature_tracker/scripts/utils_pl/pretrained_models/sp-sold2.tar"
                 model_name: "superpoint_simple"
                 model_architecture: "simple"
                 # Backbone related config

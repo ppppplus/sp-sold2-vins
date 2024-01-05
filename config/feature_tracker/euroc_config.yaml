@@ -5,22 +5,22 @@ point_feature_cfg:
         W: 752 # Input image width
         min_cnt: 150
 
-        extract_method: "superpoint"    # supported: [superpoint]
+        extract_method: "orb"    # supported: [superpoint, orb]
         superpoint:
-                weights_path: '/home/nnplvio_ws/src/nn-pl-vio/feature_tracker/scripts/utils_point/superpoint/superpoint_v1.pth'
+                weights_path: '/home/nnplvio_ws/src/sp-sold2-vins/feature_tracker/scripts/utils_point/superpoint/superpoint_v1.pth'
                 nms_dist: 4    # Non Maximum Suppression (NMS) distance
                 conf_thresh: 0.015 # Detector confidence threshold
                 nn_thresh: 0.7 # Descriptor matching threshold 
                 cuda: true # Use cuda GPU to speed up network processing speed
        
-        match_method: "nnm"       # supported: [nnm，superglue]
+        match_method: "orb"       # supported: [nnm，superglue, orb]
         nnm:
                 max_length: 5  # Maximum length of point tracks
                 nn_thresh: 0.7 # Descriptor matching threshold
-        superglue:
+        superglue: 
                 sinkhorn_iterations: 20
                 match_threshold: 0.2
-                weight_path: "/home/nnplvio_ws/src/nn-pl-vio/feature_tracker/scripts/utils_point/superglue/superglue_outdoor.pth"
+                weight_path: "/home/nnplvio_ws/src/sp-sold2-vins/feature_tracker/scripts/utils_point/superglue/superglue_outdoor.pth"
 line_feature_cfg:
         H: 480 # Input image height
         W: 752 # Input image width

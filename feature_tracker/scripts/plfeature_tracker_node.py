@@ -149,7 +149,7 @@ def img_callback(img_msg, params_dict):
 
 if __name__ == '__main__':
     rospy.init_node('feature_tracker', anonymous=False)
-    yamlPath = rospy.get_param("~config_path", "/home/nvidia/Work/sp-sold2-vins_ws/src/sp-sold2-vins/config/feature_tracker/sp-sold2_config.yaml")
+    yamlPath = rospy.get_param("~config_path", "/home/nnplvio_ws/src/sp-sold2-vins/config/feature_tracker/sp-sold2_config.yaml")
     with open(yamlPath,'rb') as f:
       params = yaml.load(f, Loader=yaml.FullLoader)
       pl_params = params["pl_feature_cfg"]
@@ -176,7 +176,7 @@ if __name__ == '__main__':
 
     pub_point_img = rospy.Publisher("/feature_tracker/feature", PointCloud, queue_size=1000)
     pub_point_match = rospy.Publisher("/feature_tracker/feature_img", Image, queue_size=1000)
-    pub_line_img = rospy.Publisher("/feature_tracker/linefeature", PointCloud, queue_size=1000)
-    pub_line_match = rospy.Publisher("/feature_tracker/linefeature_img", Image, queue_size=1000)
+    pub_line_img = rospy.Publisher("/linefeature_tracker/linefeature", PointCloud, queue_size=1000)
+    pub_line_match = rospy.Publisher("/linefeature_tracker/linefeature_img", Image, queue_size=1000)
 
     rospy.spin()

@@ -396,7 +396,7 @@ int main(int argc, char **argv)
 
     ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
-    ros::Subscriber sub_linefeature = n.subscribe("/feature_tracker/linefeature", 2000, linefeature_callback);
+    ros::Subscriber sub_linefeature = n.subscribe("/linefeature_tracker/linefeature", 2000, linefeature_callback);
     // ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 2000, raw_image_callback);
 
     // ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);

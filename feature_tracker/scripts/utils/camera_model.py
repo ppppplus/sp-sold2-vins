@@ -40,9 +40,12 @@ class PinholeCamera:
         self.cx = projection_parameters["cx"]
         self.cy = projection_parameters["cy"]
         self.d = list(distortion_parameters.values())
+        self.K = [[self.fx, 0, self.cx],
+            [0, self.fy, self.cy],
+            [0, 0, 1]]
+        
 
     def distortion(self, p_u):
-
         k1 = self.d[0]
         k2 = self.d[1]
         p1 = self.d[2]
@@ -60,28 +63,16 @@ class PinholeCamera:
         return (d_u0, d_u1)
 
     def liftProjective(self, p):
-        # convert pixel coord to normalized coord w/o distortion
-        m_inv_K11 = 1.0 / self.fx
-        m_inv_K13 = -self.cx / self.fx
-        m_inv_K22 = 1.0 / self.fy
-        m_inv_K23 = -self.cy / self.fy
+        mx_d = (p[0]-self.cx)/self.fx
+        my_d = (p[1]-self.cy)/self.fy
 
-        mx_d = m_inv_K11 * p[0] + m_inv_K13
-        my_d = m_inv_K22 * p[1] + m_inv_K23
-
-        n = 8
-        d_u = self.distortion((mx_d,my_d))
-        mx_u = mx_d - d_u[0]
-        my_u = my_d - d_u[1]
-        
-        for _ in range(n-1):
-            d_u = self.distortion((mx_u, my_u))
-            mx_u = mx_d - d_u[0]
-            my_u = my_d - d_u[1]
-        
-        return (mx_u, my_u, 1.0)
+        return (mx_d, my_d, 1.0)
+    
     def undistortImg(self, img):
-        return img
+        # mapx, mapy = cv2.initUndistortRectifyMap(np.array(self.K), np.array(self.d), None, np.array(self.K), (600,400), 5)
+        img_distort = cv2.undistort(img, np.array(self.K), np.array(self.d))
+        # img_distort = cv2.remap(img, mapx, mapy, cv2.INTER_LINEAR)
+        return img_distort
     
 class KannalabrantCamera():
     def __init__(self, projection_parameters, w, h):

@@ -101,7 +101,7 @@ def img_callback(img_msg, params_dict):
 
 if __name__ == '__main__':
     rospy.init_node('pointfeature_tracker', anonymous=False)
-    yamlPath = rospy.get_param("~config_path", "/home/plus/Work/plvins_ws/src/PL-VINS/config/feature_tracker/mtuav_v3_config.yaml")
+    yamlPath = rospy.get_param("~config_path", "/home/nnplvio_ws/src/sp-sold2-vins/config/feature_tracker/euroc_config.yaml")
     with open(yamlPath,'rb') as f:
       params = yaml.load(f, Loader=yaml.FullLoader)
       point_params = params["point_feature_cfg"]

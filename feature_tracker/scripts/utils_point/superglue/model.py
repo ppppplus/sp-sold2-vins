@@ -4,7 +4,7 @@ from . import superglue
 
 class SuperGlueMatchModel(BaseMatchModel):
     def _init(self, params):
-        self.model = superglue.SuperGlue(params["superglue"])
+        self.model = superglue.SuperGlue(params)
     def match(self, data):
         matches = self.model(data)
         return matches
