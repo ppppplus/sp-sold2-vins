@@ -32,8 +32,8 @@ class ORBPointMatchModel(BaseMatchModel):
         self.bf = cv2.BFMatcher(cv2.NORM_HAMMING)
 
     def match(self, data):
-        desc1 = data["descriptors0"]
-        desc2 = data["descriptors1"]
+        desc1 = np.array(data["descriptors0"], np.uint8)
+        desc2 = np.array(data["descriptors1"], np.uint8)
         assert desc1.shape[0] == desc2.shape[0]
         if desc1.shape[1] == 0 or desc2.shape[1] == 0:
             return np.zeros((3, 0))
