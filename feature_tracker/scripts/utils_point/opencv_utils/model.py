@@ -9,7 +9,9 @@ import time
 import cv2
 import torch
 import yaml
+from pylab import *
 from utils.base_model import BaseExtractModel, BaseMatchModel
+
 
 class ORBPointExtractModel(BaseExtractModel):
   def _init(self, params=None):
@@ -28,23 +30,32 @@ class ORBPointExtractModel(BaseExtractModel):
     return pts.T, desc.T # [2,num_points], [32, num_points]
     # return pts.T, desc
   
-class SIFTPointExtractModel(BaseExtractModel):
-  def _init(self, params=None):
-    self.sift = cv2.xfeatures2d.SIFT_create()
+class FASTPointExtractModel(BaseExtractModel):
+    def _init(self, params=None):
+        self.fast = cv2.FastFeatureDetector_create()
 
+    def process_image(self, img):
+        if img is None:
+            return (None, False)
+        if img.ndim != 2:
+            grayim = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        else:
+            grayim = img
+        return grayim, True
 
-  def extract(self, img):
-    # input img and output feature points&descriptors
+    def extract(self, img):
+        # input img and output feature points&descriptors
 
-    if img is None:
-        print("Load image error, Please check image_info topic")
-        return
-    # Get points and descriptors.
-    kpts, desc = self.sift.detectAndCompute(img, None)
-
-    pts = cv2.KeyPoint_convert(kpts)
-    return pts.T, desc.T # [2,num_points], [32, num_points]
-    # return pts.T, desc
+        grayim, status = self.process_image(img)
+        if status is False:
+            print("Load image error, Please check image_info topic")
+            return
+        # Get points and descriptors..
+        kpts = self.fast.detect(grayim, None)
+        kpts, desc = self.fast.detectAndCompute(img, None)
+        pts = cv2.KeyPoint_convert(kpts)
+        return pts.T, desc.T # [2,num_points], [32, num_points]
+        # return pts.T, desc
   
 class ORBPointMatchModel(BaseMatchModel):
     def _init(self, params=None):
@@ -66,7 +77,7 @@ class ORBPointMatchModel(BaseMatchModel):
             good_match.append([x.queryIdx, x.trainIdx, x.distance])
         return np.array(good_match).T
 
-class SIFTPointMatchModel(BaseMatchModel):
+class KnnPointMatchModel(BaseMatchModel):
     def _init(self, params=None):
         self.bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
 

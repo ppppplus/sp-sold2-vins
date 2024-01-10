@@ -33,8 +33,8 @@ if __name__ == '__main__':
            "H": 480, # Input image height
             "W": 752, # Input image width
             "min_cnt": 150,
-            "extract_method": "orb",
-            "match_method": "orb",
+            "extract_method": "fast",
+            "match_method": "knn",
 
         }
     }
@@ -46,10 +46,10 @@ if __name__ == '__main__':
     my_pointmatch_model = create_pointmatch_instance(point_params)
     img0 = cv2.imread("/home/nnplvio_ws/src/sp-sold2-vins/feature_tracker/scripts/img/img0.JPG")
     img1 = cv2.imread("/home/nnplvio_ws/src/sp-sold2-vins/feature_tracker/scripts/img/img1.JPG")
-
+ 
     pts0, desc0 = my_pointextract_model.extract(img0)
     pts1, desc1 = my_pointextract_model.extract(img1)
-
+    print(pts0.shape, desc0.shape)
     # pts = np.array(pts)
     # desc = np.array(desc)
     # print(pts.shape, desc.shape)
