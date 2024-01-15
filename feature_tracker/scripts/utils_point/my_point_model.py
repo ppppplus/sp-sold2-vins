@@ -1,6 +1,7 @@
 import numpy as np
 from utils_point.superpoint.model import SuperpointPointExtractModel, NnmPointMatchModel
-from utils_point.opencv_utils.model import ORBPointExtractModel, ORBPointMatchModel, SIFTPointExtractModel, SIFTPointMatchModel
+from utils_point.r2d2.model import R2D2PointExtractModel
+from utils_point.opencv_utils.model import ORBPointExtractModel, KnnPointMatchModel, FASTPointExtractModel, HarrisPointExtractModel, HarrisPointMatchModel, SIFTPointExtractModel, SURFPointExtractModel
 # from utils_point.superpoint.trt_model import TrtSuperpointPointExtractModel
 from utils_point.superglue.model import SuperGlueMatchModel
 
@@ -14,6 +15,10 @@ def create_pointextract_instance(params):
         return ORBPointExtractModel(params)
     elif extract_method == "sift":
         return SIFTPointExtractModel(params)
+    elif extract_method == "surf":
+        return SURFPointExtractModel(params)
+    elif extract_method == "r2d2":
+        return R2D2PointExtractModel(params["r2d2"])
     else:
         raise ValueError("Extract method {} is not supported!".format(extract_method))
 
@@ -23,9 +28,9 @@ def create_pointmatch_instance(params):
         return NnmPointMatchModel(params["nnm"])
     elif match_method == "superglue":
         return SuperGlueMatchModel(params["superglue"])
-    elif match_method == "orb":
-        return ORBPointMatchModel(params)
-    elif match_method == "sift":
-        return SIFTPointMatchModel(params)
+    elif match_method == "knn":
+        return KnnPointMatchModel(params["knn"])
+    elif match_method == "harris":
+        return HarrisPointMatchModel(params)
     else:
         raise ValueError("Match method {} is not supported!".format(match_method))
