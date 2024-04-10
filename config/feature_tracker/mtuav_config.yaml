@@ -4,7 +4,7 @@ point_feature_cfg:
         weights_path: '/home/plus/plvins_ws/src/PL-VINS/feature_tracker/scripts/superpoint/superpoint_v1.pth'
         max_length: 5  # Maximum length of point tracks
         nms_dist: 4    # Non Maximum Suppression (NMS) distance
-        conf_thresh: 0.015 # Detector confidence threshold
+        conf_thresh: 0.005 # Detector confidence threshold
         nn_thresh: 0.7 # Descriptor matching threshold 
         cuda: false # Use cuda GPU to speed up network processing speed
         H: 1080 # Input image height

@@ -27,7 +27,7 @@ from utils_point.my_point_model import create_pointextract_instance, create_poin
 
 init_pub = False
 count_frame = 0
-opencv_method = ["oorb"]
+opencv_method = ["orb"]
 
 def img_callback(img_msg, params_dict):
     feature_tracker = params_dict["feature_tracker"]
@@ -102,13 +102,14 @@ def img_callback(img_msg, params_dict):
 
 if __name__ == '__main__':
     rospy.init_node('pointfeature_tracker', anonymous=False)
-    yamlPath = rospy.get_param("~config_path", "/home/nnplvio_ws/src/sp-sold2-vins/config/feature_tracker/euroc_config.yaml")
+    yamlPath = rospy.get_param("~config_path", "/home/nnplvio_r2d2_ws/src/sp-sold2-vins/config/feature_tracker/euroc_config.yaml")
     with open(yamlPath,'rb') as f:
-      params = yaml.load(f, Loader=yaml.FullLoader)
-      point_params = params["point_feature_cfg"]
-      camera_params = params["camera_cfg"]
-      extract_method = point_params["extract_method"]
-      opencv = 1 if extract_method in opencv_method else 0
+        params = yaml.load(f, Loader=yaml.FullLoader)
+        point_params = params["point_feature_cfg"]
+        camera_params = params["camera_cfg"]
+        extract_method = point_params["extract_method"]
+        #opencv = 1 if extract_method in opencv_method else 0
+        opencv = 0
 
 
     my_pointextract_model = create_pointextract_instance(point_params)  # 建立自定义点特征提取模型

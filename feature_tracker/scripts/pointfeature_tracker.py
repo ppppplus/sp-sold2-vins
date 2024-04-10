@@ -10,7 +10,7 @@ from time import time
 
 # from utils.PointTracker import PointTracker
 # from utils.feature_process import SuperPointFrontend_torch, SuperPointFrontend
-run_time = 0.0
+# run_time = 0.0
 match_time = 0.0
 
 class FeatureTracker:
@@ -115,10 +115,10 @@ class FeatureTracker:
 		desc_dim = self.forwframe_['descriptor'].shape[0]
 		# print("pts_shape: {}, desc_shape: {}".format(self.forwframe_["keyPoint"].shape, self.forwframe_["descriptor"].shape))
 
-		global run_time
-		run_time += ( time()-start_time )
+		# global run_time
+		# run_time += ( time()-start_time )
 		print("point extraction time is:", time()-start_time)
-		print("total run time is :", run_time)
+		# print("total run time is :", run_time)
 
 		num_points = self.forwframe_['keyPoint'].shape[1]
 		print("current keypoint size is :", num_points)
@@ -148,10 +148,8 @@ class FeatureTracker:
 									}
 							)
 			# matches: [3,num_matches]
-			global match_time
-			match_time += time()-start_time
-			print("match time is :", match_time)
-			print("match size is :", matches.shape[1])
+			print("point match time is :", time()-start_time)
+			print("point match size is :", matches.shape[1])
 			######################## 保证匹配得到的pointID相同 #####################
 			for k in range(matches.shape[1]):
 				self.forwframe_['PointID'][int(matches[0,k])] = self.curframe_['PointID'][int(matches[1,k])]
@@ -222,12 +220,12 @@ class FeatureTracker:
 		# desc_dim = self.forwframe_['descriptor'].shape[0]
 		# print("pts_shape: {}, desc_shape: {}".format(self.forwframe_["keyPoint"].shape, self.forwframe_["descriptor"].shape))
 
-		global run_time
-		run_time += ( time()-start_time )
+		# global run_time
+		# run_time += ( time()-start_time )
 		print("point extraction time is:", time()-start_time)
-		print("total run time is :", run_time)
+		# print("total run time is :", run_time)
 
-		num_points = len(self.forwframe_['keyPoint'])
+		num_points = self.forwframe_['keyPoint'].shape[1]
 		print("current keypoint size is :", num_points)
 
 		# if keyPoint_size < self.min_cnt-50:
@@ -252,10 +250,8 @@ class FeatureTracker:
 									}
 							)
 			# matches: [3,num_matches]
-			global match_time
-			match_time += time()-start_time
-			print("match time is :", match_time)
-			print("match size is :", matches.shape[1])
+			print("point match time is :", time()-start_time)
+			print("point match size is :", matches.shape[1])
 			######################## 保证匹配得到的pointID相同 #####################
 			for k in range(matches.shape[1]):
 				self.forwframe_['PointID'][int(matches[0,k])] = self.curframe_['PointID'][int(matches[1,k])]
@@ -272,11 +268,11 @@ class FeatureTracker:
 				if self.forwframe_['PointID'][i] == -1 :
 					self.forwframe_['PointID'][i] = self.allfeature_cnt
 					self.allfeature_cnt = self.allfeature_cnt+1
-					vecpoint_new.append(self.forwframe_['keyPoint'][i])
+					vecpoint_new.append(self.forwframe_['keyPoint'][:,i])
 					pointID_new.append(self.forwframe_['PointID'][i])
-					descr_new.append(self.forwframe_['descriptor'][i])
+					descr_new.append(self.forwframe_['descriptor'][:,i])
 				else:
-					vecpoint_tracked.append(self.forwframe_['keyPoint'][i])
+					vecpoint_tracked.append(self.forwframe_['keyPoint'][:,i])
 					pointID_tracked.append(self.forwframe_['PointID'][i])
 					descr_tracked.append(self.forwframe_['descriptor'][i])
 
@@ -300,10 +296,9 @@ class FeatureTracker:
 			self.forwframe_['descriptor'] = descr_tracked
 
 		self.curframe_['keyPoint'] = self.forwframe_['keyPoint']
-		self.curframe_['PointID'] = self.curframe_['PointID']
-		self.curframe_['descriptor'] = self.curframe_['descriptor']
-		self.curframe_['image'] = self.curframe_['image']
-
+		self.curframe_['PointID'] = self.forwframe_['PointID']
+		self.curframe_['descriptor'] = self.forwframe_['descriptor']
+		self.curframe_['image'] = self.forwframe_['image']
 
 
 

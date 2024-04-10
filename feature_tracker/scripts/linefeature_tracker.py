@@ -10,7 +10,7 @@ from time import time
 
 # from utils.PointTracker import PointTracker
 # from utils.feature_process import SuperPointFrontend_torch, SuperPointFrontend
-run_time = 0.0
+# run_time = 0.0
 match_time = 0.0
 
 myjet = np.array([[0.        , 0.        , 0.5       ],
@@ -128,15 +128,15 @@ class LineFeatureTracker:
 			self.forwframe_['valid_points'] = None
 			self.forwframe_['image'] = self.new_frame	# 建立新的帧
 
-		# TODO: 利用线特征提取器提取new_frame的特征信息
+		# 利用线特征提取器提取new_frame的特征信息
 		print('*'*10 + " current frame " + '*'*10)
 		start_time = time()
 		self.forwframe_['vecline'], self.forwframe_['descriptor'], self.forwframe_['valid_points']  = self.extractor.extract(self.new_frame)	# vecline为num_line*2*2，desc为128*num_line*num_samples
 
-		global run_time
-		run_time += ( time()-start_time )
-		print("total run time is :", run_time)
-
+		# global run_time
+		# run_time += ( time()-start_time )
+		# print("total run time is :", run_time)
+		print("line extraction time is:", time()-start_time)
 		lines_num = self.forwframe_['vecline'].shape[0]
 		print("current number of lines is :", lines_num)
 		
@@ -167,10 +167,8 @@ class LineFeatureTracker:
 									self.curframe_['valid_points']
 							)
 			# print("index:", index_lines1, index_lines2)
-			global match_time
-			match_time += time()-start_time
-			print("match time is :", match_time)
-			print("match size is :", index_lines1.shape[0])
+			print("line match time is :", time()-start_time)
+			print("line match size is :", index_lines1.shape[0])
 			######################## 保证匹配得到的lineID相同 #####################
 			for k in range(index_lines1.shape[0]):
 				self.forwframe_['lineID'][index_lines1[k]] = self.curframe_['lineID'][index_lines2[k]]

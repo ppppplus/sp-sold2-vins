@@ -237,7 +237,7 @@ class SuperPointFrontend(object):
     # Forward pass of network.
     outs = self.net.forward(inp)
     semi, coarse_desc = outs[0], outs[1]
-    print("semi shape:{}, coarse_desc shape:{}".format(semi.shape, coarse_desc.shape))
+    # print("semi shape:{}, coarse_desc shape:{}".format(semi.shape, coarse_desc.shape))
     # Convert pytorch -> numpy.
     semi = semi.data.cpu().numpy().squeeze()
     # --- Process points.

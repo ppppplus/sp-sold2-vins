@@ -50,8 +50,10 @@ T readParam(ros::NodeHandle &n, std::string name)
 void readParameters(ros::NodeHandle &n)
 {
     DATASET_NAME = readParam<std::string>(n, "dataset");
+    // DATASET_NAME = "Euroc_MH_04_difficult";
     std::string config_file;
     config_file = readParam<std::string>(n, "config_file");
+    // config_file = "/home/nnplvio_r2d2_ws/src/sp-sold2-vins/config/euroc/euroc_config_loop.yaml";
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())
     {

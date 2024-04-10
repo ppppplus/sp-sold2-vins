@@ -55,7 +55,11 @@ class NonMaxSuppression (torch.nn.Module):
 
 class R2D2PointExtractModel(BaseExtractModel):
     def _init(self, params):
-        self.params = params
+        self.params = params["r2d2"]
+        self.H = params["H"]
+        self.W = params["W"]
+        self.border_remove = self.params["border_remove"]
+        
         self.net = load_network(self.params["weights_path"], self.params["cuda"])
         self.detector = NonMaxSuppression(
             rel_thr = self.params["reliability_thr"],
@@ -75,8 +79,9 @@ class R2D2PointExtractModel(BaseExtractModel):
         #     grayim = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         # else:
         #     grayim = img
-        img = norm_RGB(img)[None] 
-        # img = torch.from_numpy(img)
+        rgb_image = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        img = norm_RGB(rgb_image)[None] 
+        # img = torch.from_numpy(img.astype(np.float32))[None]
         if self.params["cuda"]: img = img.cuda()
         # Image is resized via opencv.
         # interp = cv2.INTER_AREA
@@ -108,7 +113,13 @@ class R2D2PointExtractModel(BaseExtractModel):
         s = c*q
         d = descriptors[0,:,y,x]
         pts = torch.cat([x.unsqueeze(0),y.unsqueeze(0),s.unsqueeze(0)]).cpu().numpy()
-        desc = d.cpu().numpy()
+
+        bord = self.border_remove
+        toremoveW = np.logical_or(pts[0, :] < bord, pts[0, :] >= (self.W-bord))
+        toremoveH = np.logical_or(pts[1, :] < bord, pts[1, :] >= (self.H-bord))
+        toremove = np.logical_or(toremoveW, toremoveH)
+        pts = pts[:, ~toremove]
+        desc = d[:, ~toremove].cpu().numpy()
         # print("superpoint run time:%f", end_time-start_time)
         # feature_points = pts[0:2].T.astype('int32')
         return pts, desc # [3,num_points], [128,num_points]

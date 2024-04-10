@@ -184,6 +184,37 @@ class KnnPointMatchModel(BaseMatchModel):
             good_match.append([x.queryIdx, x.trainIdx, x.distance])
         return np.array(good_match).T
     
+class R2D2PointMatchModel(BaseMatchModel):
+    def _init(self, params=None):
+        self.thresh = params["thresh"]
+        self.bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+
+    def match(self, data):
+        desc1 = np.array(data["descriptors0"])
+        desc2 = np.array(data["descriptors1"])
+        dmat = np.dot(desc1.T, desc2)
+        dmat = np.sqrt(2-2*np.clip(dmat, -1, 1))
+        # Get NN indices and scores.
+        idx = np.argmin(dmat, axis=1)
+        scores = dmat[np.arange(dmat.shape[0]), idx]
+        # Threshold the NN matches.
+        keep = scores < self.thresh
+        # Check if nearest neighbor goes both directions and keep those.
+        idx2 = np.argmin(dmat, axis=0)
+        keep_bi = np.arange(len(idx)) == idx2[idx]
+        keep = np.logical_and(keep, keep_bi)
+        idx = idx[keep]
+        scores = scores[keep]
+        # Get the surviving point indices.
+        m_idx1 = np.arange(desc1.shape[1])[keep]
+        m_idx2 = idx
+        # Populate the final 3xN match data structure.
+        matches = np.zeros((3, int(keep.sum())))
+        matches[0, :] = m_idx1
+        matches[1, :] = m_idx2
+        matches[2, :] = scores
+        return matches
+    
 class HarrisPointMatchModel(BaseMatchModel):
     def _init(self, params=None):
         pass

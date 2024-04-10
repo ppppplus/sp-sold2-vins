@@ -38,7 +38,7 @@ pl_feature_cfg:
                 # Threshold of heatmap detection
                 prob_thresh: 0.5
                 ########### point extraction ##########
-                conf_thresh: 0.005 #0.1 # Detector confidence threshold
+                conf_thresh: 0.015 #0.1 # Detector confidence threshold
                 nms_dist: 4
                 nn_thresh: 0.7
                 border_remove: 4 # Remove points this close to the border.
@@ -87,7 +87,7 @@ point_feature_cfg:
         match_method: "nnm"       # supported: [nnm，superglue]
         nnm:
                 max_length: 5  # Maximum length of point tracks
-                nn_thresh: 0.7 # Descriptor matching threshold
+                nn_thresh: 0.93 # Descriptor matching threshold
 line_feature_cfg:
         H: 480 # Input image height
         W: 752 # Input image width

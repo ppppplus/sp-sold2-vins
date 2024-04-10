@@ -3,7 +3,7 @@
 #common parameters
 imu_topic: "/imu0"
 image_topic: "/cam0/image_raw"
-output_path: "/home/nnplvio_ws/src/sp-sold2-vins/Trajactory"         # vins outputs will be wrttento vins_folder_path + output_path
+output_path: "/home/nnplvio_r2d2_ws/src/sp-sold2-vins/Trajactory"         # vins outputs will be wrttento vins_folder_path + output_path
 #camera calibration 
 model_type: PINHOLE
 camera_name: camera
@@ -42,7 +42,7 @@ extrinsicTranslation: !!opencv-matrix
    data: [-1.9366188915083148e-02, -6.7320901041723544e-02, -6.3165895203544454e-03]
 
 #feature traker paprameters
-max_cnt: 150            # max feature number in feature tracking
+max_cnt: 200            # max feature number in feature tracking
 min_dist: 30            # min distance between two features 
 freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
 F_threshold: 1.0        # ransac threshold (pixel)

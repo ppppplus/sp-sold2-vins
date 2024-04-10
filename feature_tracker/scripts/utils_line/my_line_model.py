@@ -1,5 +1,6 @@
 import numpy as np
 from utils_line.sold2.model import SOLD2LineExtractModel
+from utils_line.lcnn.model import LCNNLineExtractModel
 from utils_line.sold2.model import WunschLinefeatureMatchModel
 
 def create_lineextract_instance(params):
@@ -8,6 +9,9 @@ def create_lineextract_instance(params):
         params_dict = params["sold2"]
         params_dict["num_samples"] = params["num_samples"]
         return SOLD2LineExtractModel(params_dict)
+    elif extract_method == "lcnn":
+        params_dict = params["lcnn"]
+        return LCNNLineExtractModel(params_dict)
     else:
         raise ValueError("Line extract method {} is not supported!".format(extract_method))
 

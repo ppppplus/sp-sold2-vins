@@ -362,6 +362,11 @@ void FeatureManager::debugShow()
 
 vector<pair<Vector3d, Vector3d>> FeatureManager::getCorresponding(int frame_count_l, int frame_count_r)
 {
+    /**
+        * 函数功能：找出最新的两帧之间共视特征点的对应points有哪些
+        * 传入的参数frame_count_l 为frame_count-1，倒数第二帧
+        * frame_count_r为frame_count，最新帧
+    */
     vector<pair<Vector3d, Vector3d>> corres;
     for (auto &it : feature)
     {

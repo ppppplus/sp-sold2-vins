@@ -66,10 +66,10 @@ def normalize_keypoints(kpts, image_shape):
     """ Normalize keypoints locations based on image image_shape"""
     height, width = image_shape
     one = kpts.new_tensor(1)
-    size = torch.stack([one*width, one*height])
+    size = torch.stack([one*width, one*height])[None]
     center = size / 2
-    scaling = size.max() * 0.7
-    return (kpts - center[:, None]) / scaling
+    scaling = size.max(1, keepdim=True).values * 0.7
+    return (kpts - center[:, None, :]) / scaling[:, None, :]
 
 
 class KeypointEncoder(nn.Module):
@@ -79,9 +79,9 @@ class KeypointEncoder(nn.Module):
         self.encoder = MLP([3] + layers + [feature_dim])
         nn.init.constant_(self.encoder[-1].bias, 0.0)
 
-    def forward(self, kpts):
-        inputs = kpts
-        return self.encoder(inputs[None, ...])
+    def forward(self, kpts, scores):
+        inputs = [kpts.transpose(1, 2), scores.unsqueeze(1)]
+        return self.encoder(torch.cat(inputs, dim=1))
 
 
 def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
@@ -232,8 +232,12 @@ class SuperGlue(nn.Module):
         kpts0, kpts1 = data['keypoints0'], data['keypoints1']
         desc0 = torch.from_numpy(desc0).float()[None, ...]
         desc1 = torch.from_numpy(desc1).float()[None, ...]
-        kpts0 = torch.from_numpy(kpts0).float()
-        kpts1 = torch.from_numpy(kpts1).float()
+        scores0 = torch.from_numpy(kpts0[2:3]).float()
+        scores1 = torch.from_numpy(kpts1[2:3]).float()
+        kpts0 = torch.from_numpy(kpts0[:-1].T).float()[None, ...]
+        kpts1 = torch.from_numpy(kpts1[:-1].T).float()[None, ...]
+        
+
         # scores0 = torch.from_numpy(scores0)[None, ...].double()
         # scores1 = torch.from_numpy(scores1)[None, ...].double()
 
@@ -247,14 +251,12 @@ class SuperGlue(nn.Module):
         #     }
 
         # Keypoint normalization.
-        kpts0[:-1] = normalize_keypoints(kpts0[:-1], data['shape'])
-        kpts1[:-1] = normalize_keypoints(kpts1[:-1], data['shape'])
+        kpts0 = normalize_keypoints(kpts0, data['shape'])
+        kpts1 = normalize_keypoints(kpts1, data['shape'])
 
         # Keypoint MLP encoder.
-        kenc_kpts0 = self.kenc(kpts0)
-        kenc_kpts1 = self.kenc(kpts1)
-        desc0 = desc0 + kenc_kpts0
-        desc1 = desc1 + kenc_kpts1
+        desc0 = desc0 + self.kenc(kpts0, scores0)
+        desc1 = desc1 + self.kenc(kpts1, scores1)
 
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1)
@@ -283,10 +285,8 @@ class SuperGlue(nn.Module):
         valid1 = mutual1 & valid0.gather(1, indices1)
         # indices0 = torch.where(valid0, indices0, indices0.new_tensor(-1))
         # indices1 = torch.where(valid1, indices1, indices1.new_tensor(-1))
-        indices0 = indices0[valid0]
-        indices1 = indices1[valid1]
-        m_id0 = indices1.cpu().numpy()  # 编号对应于图一中匹配上的点ID
-        m_id1 = indices0.cpu().numpy()  # 编号对应于图二中匹配上的点ID
+        m_id0 = torch.arange(valid0.shape[1])[valid0[0]].cpu().numpy()
+        m_id1 = indices0[valid0].cpu().numpy()  # 编号对应于图二中匹配上的点ID
         mscores0 = mscores0[valid0].detach().cpu().numpy()
         mscores1 = mscores1[valid1].detach().cpu().numpy()
         return np.vstack((m_id0, m_id1, mscores0, mscores1))

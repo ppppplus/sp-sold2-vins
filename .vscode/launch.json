@@ -14,3 +14,27 @@
         }
     ]
 }
+// {
+//     "version": "0.2.0",
+//     "configurations": [
+//       {
+//         "name": "C/C++ Runner: Debug Session",
+//         "type": "cppdbg",
+//         "request": "launch",
+//         "args": [],
+//         "stopAtEntry": false,
+//         "externalConsole": false,
+//         "cwd": "/home/nnplvio_r2d2_ws/src/sp-sold2-vins/vins_estimator/src",
+//         "program": "/home/nnplvio_r2d2_ws/devel/lib/plvins_estimator/plvins_estimator",
+//         "MIMode": "gdb",
+//         "miDebuggerPath": "gdb",
+//         "setupCommands": [
+//           {
+//             "description": "Enable pretty-printing for gdb",
+//             "text": "-enable-pretty-printing",
+//             "ignoreFailures": true
+//           }
+//         ]
+//       }
+//     ]
+//   }
