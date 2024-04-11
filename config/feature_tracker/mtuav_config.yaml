@@ -1,0 +1,38 @@
+
+image_topic: "/frontfpv_color"
+point_feature_cfg:
+        weights_path: '/home/plus/plvins_ws/src/PL-VINS/feature_tracker/scripts/superpoint/superpoint_v1.pth'
+        max_length: 5  # Maximum length of point tracks
+        nms_dist: 4    # Non Maximum Suppression (NMS) distance
+        conf_thresh: 0.005 # Detector confidence threshold
+        nn_thresh: 0.7 # Descriptor matching threshold 
+        cuda: false # Use cuda GPU to speed up network processing speed
+        H: 1080 # Input image height
+        W: 1920 # Input image width
+        min_cnt: 150
+line_feature_cfg:
+        cross_check: True
+        num_samples: 5
+        min_dist_pts: 8
+        top_k_candidates: 10
+        grid_size: 4
+        line_score: false
+        sampling: "regular"
+        H: 1080 # Input image height
+        W: 1920 # Input image width
+        min_cnt: 100
+#camera calibration 
+camera_cfg:
+        model_type: KANNALA_BRANDT
+        camera_name: camera
+        image_width: 1920
+        image_height: 1080
+        projection_parameters:
+                k2: -0.017784451980575697
+                k3: -0.0029481698662521378
+                k4: 0.0084894141750293754
+                k5: -0.014614037956088028
+                mu: 799.51049194946381
+                mv: 800.07894531866941
+                u0: 978.17617339331969
+                v0: 536.35715207978092

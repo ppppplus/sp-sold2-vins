@@ -1,0 +1,18 @@
+<launch>
+    <arg name="feature_config_path" default = "$(find feature_tracker)/../config/feature_tracker/sp-sold2net_config.yaml" />
+    <arg name="config_path" default = "$(find feature_tracker)/../config/mtuav/mtuav_v3_config_fix_extrinsic.yaml" />
+    <arg name="vins_path" default = "$(find feature_tracker)/../" />
+    <arg name="dataset" default="Euroc_MH_01_easy" />
+
+    <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find plvins_estimator)/../config/vins_rviz_config.rviz" /> -->
+
+    <node name="feature_tracker" pkg="feature_tracker" type="featuremap_node.py" output="screen" >
+        <param name="config_path" type="string" value="$(arg feature_config_path)" />
+    </node>
+<!-- 
+    <node name="linefeature_tracker" pkg="feature_tracker" type="linefeature_tracker_node.py" output="screen">
+        <param name="config_path" type="string" value="$(arg feature_config_path)" />
+    </node>     -->
+
+</launch>
+

@@ -1,0 +1,27 @@
+
+# input: 'assets/nyu_snippet.mp4'
+point_feature_cfg:
+        weights_path: '/home/plus/Work/plvins_ws/src/PL-VINS/feature_tracker/scripts/superpoint/superpoint_v1.pth'
+        # img_glob: '*.png'
+        # skip: 1   # Images to skip if input is movie or directory
+        # show_extra: false  # Show extra debug outputs
+        # H: 120 # Input image height
+        # W: 160 # Input image width
+        # display_scale: 2   # Factor to scale output visualization
+        # min_length: 2  # Minimum length of point tracks
+        # max_length: 5  # Maximum length of point tracks
+        nms_dist: 4    # Non Maximum Suppression (NMS) distance
+        conf_thresh: 0.015 # Detector confidence threshold
+        nn_thresh: 0.7 # Descriptor matching threshold 
+        # camid: 0   # OpenCV webcam video capture ID
+        # waitkey: 1 # OpenCV waitkey time in ms
+        cuda: True # Use cuda GPU to speed up network processing speed
+        # no_display: false
+        # write: true    # Save output frames to a directory
+        # write_dir: 'tracker_outputs/'
+line_feature_cfg:
+        cross_check: True
+        num_samples: 5
+        min_dist_pts: 8
+        top_k_candidates: 10
+        grid_size: 4
