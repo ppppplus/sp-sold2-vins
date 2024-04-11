@@ -1,1 +1,3 @@
-utils_line/lcnn/312k.pth.tar
+/*/
+!*.ipynb
+!img/
