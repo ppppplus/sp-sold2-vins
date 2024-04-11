@@ -20,7 +20,7 @@ point_feature_cfg:
                 cuda: True
                 thresh: 0.99
        
-        match_method: "superglue"       # supported: [nnm，superglue, knn, r2d2]
+        match_method: "nnm"       # supported: [nnm，superglue, knn, r2d2]
         nnm:
                 max_length: 5  # Maximum length of point tracks
                 nn_thresh: 0.8 # Descriptor matching threshold

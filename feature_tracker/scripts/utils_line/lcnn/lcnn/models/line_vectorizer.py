@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# from lcnn.config import M
+# from ..config import self.sampler
 
 FEATURE_DIM = 8
 
@@ -16,29 +16,30 @@ class LineVectorizer(nn.Module):
     def __init__(self, backbone, sampler):
         super().__init__()
         self.backbone = backbone
+        self.sampler = sampler
 
-        lambda_ = torch.linspace(0, 1, sampler.n_pts0)[:, None]
+        lambda_ = torch.linspace(0, 1, self.sampler["n_pts0"])[:, None]
         self.register_buffer("lambda_", lambda_)
-        self.do_static_sampling = sampler.n_stc_posl + sampler.n_stc_negl > 0
+        self.do_static_sampling = self.sampler["n_stc_posl"] + self.sampler["n_stc_negl"] > 0
 
-        self.fc1 = nn.Conv2d(256, sampler.dim_loi, 1)
-        scale_factor = sampler.n_pts0 // sampler.n_pts1
-        if M.use_conv:
+        self.fc1 = nn.Conv2d(256, self.sampler["dim_loi"], 1)
+        scale_factor = self.sampler["n_pts0"] // self.sampler["n_pts1"]
+        if self.sampler["use_conv"]:
             self.pooling = nn.Sequential(
                 nn.MaxPool1d(scale_factor, scale_factor),
-                Bottleneck1D(M.dim_loi, M.dim_loi),
+                Bottleneck1D(self.sampler["dim_loi"], self.sampler["dim_loi"]),
             )
             self.fc2 = nn.Sequential(
-                nn.ReLU(inplace=True), nn.Linear(M.dim_loi * M.n_pts1 + FEATURE_DIM, 1)
+                nn.ReLU(inplace=True), nn.Linear(self.sampler["dim_loi"] * self.sampler["n_pts1"] + FEATURE_DIM, 1)
             )
         else:
             self.pooling = nn.MaxPool1d(scale_factor, scale_factor)
             self.fc2 = nn.Sequential(
-                nn.Linear(M.dim_loi * M.n_pts1 + FEATURE_DIM, M.dim_fc),
+                nn.Linear(self.sampler["dim_loi"] * self.sampler["n_pts1"] + FEATURE_DIM, self.sampler["dim_fc"]),
                 nn.ReLU(inplace=True),
-                nn.Linear(M.dim_fc, M.dim_fc),
+                nn.Linear(self.sampler["dim_fc"], self.sampler["dim_fc"]),
                 nn.ReLU(inplace=True),
-                nn.Linear(M.dim_fc, 1),
+                nn.Linear(self.sampler["dim_fc"], 1),
             )
         self.loss = nn.BCEWithLogitsLoss(reduction="none")
 
@@ -82,7 +83,7 @@ class LineVectorizer(nn.Module):
                     + x[i, :, px0l, py1l] * (px1 - px) * (py - py0)
                     + x[i, :, px1l, py1l] * (px - px0) * (py - py0)
                 )
-                .reshape(n_channel, -1, M.n_pts0)
+                .reshape(n_channel, -1, self.sampler["n_pts0"])
                 .permute(1, 0, 2)
             )
             xp = self.pooling(xp)
@@ -91,7 +92,7 @@ class LineVectorizer(nn.Module):
 
         x, y = torch.cat(xs), torch.cat(ys)
         f = torch.cat(fs)
-        x = x.reshape(-1, M.n_pts1 * M.dim_loi)
+        x = x.reshape(-1, self.sampler["n_pts1"] * self.sampler["dim_loi"])
         x = torch.cat([x, f], 1)
         x = self.fc2(x).flatten()
 
@@ -108,18 +109,18 @@ class LineVectorizer(nn.Module):
                 p0 = p0[mask]
                 s0 = s0[mask]
                 if len(p0) == 0:
-                    lines.append(torch.zeros([1, M.n_out_line, 2, 2], device=p.device))
-                    score.append(torch.zeros([1, M.n_out_line], device=p.device))
+                    lines.append(torch.zeros([1, self.sampler["n_out_line"], 2, 2], device=p.device))
+                    score.append(torch.zeros([1, self.sampler["n_out_line"]], device=p.device))
                 else:
                     arg = torch.argsort(s0, descending=True)
                     p0, s0 = p0[arg], s0[arg]
-                    lines.append(p0[None, torch.arange(M.n_out_line) % len(p0)])
-                    score.append(s0[None, torch.arange(M.n_out_line) % len(s0)])
+                    lines.append(p0[None, torch.arange(self.sampler["n_out_line"]) % len(p0)])
+                    score.append(s0[None, torch.arange(self.sampler["n_out_line"]) % len(s0)])
                 for j in range(len(jcs[i])):
                     if len(jcs[i][j]) == 0:
-                        jcs[i][j] = torch.zeros([M.n_out_junc, 2], device=p.device)
+                        jcs[i][j] = torch.zeros([self.sampler["n_out_junc"], 2], device=p.device)
                     jcs[i][j] = jcs[i][j][
-                        None, torch.arange(M.n_out_junc) % len(jcs[i][j])
+                        None, torch.arange(self.sampler["n_out_junc"]) % len(jcs[i][j])
                     ]
             result["preds"]["lines"] = torch.cat(lines)
             result["preds"]["score"] = torch.cat(score)
@@ -141,8 +142,8 @@ class LineVectorizer(nn.Module):
 
             lpos = sum_batch(loss_lpos) / sum_batch(lpos_mask).clamp(min=1)
             lneg = sum_batch(loss_lneg) / sum_batch(lneg_mask).clamp(min=1)
-            result["losses"][0]["lpos"] = lpos * M.loss_weight["lpos"]
-            result["losses"][0]["lneg"] = lneg * M.loss_weight["lneg"]
+            result["losses"][0]["lpos"] = lpos * self.sampler.loss_weight["lpos"]
+            result["losses"][0]["lneg"] = lneg * self.sampler.loss_weight["lneg"]
 
         if input_dict["mode"] == "training":
             del result["preds"]
@@ -159,10 +160,10 @@ class LineVectorizer(nn.Module):
             n_type = jmap.shape[0]
             jmap = non_maximum_suppression(jmap).reshape(n_type, -1)
             joff = joff.reshape(n_type, 2, -1)
-            max_K = M.n_dyn_junc // n_type
+            max_K = self.sampler["n_dyn_junc"] // n_type
             N = len(junc)
             if mode != "training":
-                K = min(int((jmap > M.eval_junc_thres).float().sum().item()), max_K)
+                K = min(int((jmap > self.sampler["eval_junc_thres"]).float().sum().item()), max_K)
             else:
                 K = min(int(N * 2 + 2), max_K)
             if K < 2:
@@ -201,22 +202,22 @@ class LineVectorizer(nn.Module):
 
                 # sample positive lines
                 cdx = label.nonzero().flatten()
-                if len(cdx) > M.n_dyn_posl:
+                if len(cdx) > self.sampler["n_dyn_posl"]:
                     # print("too many positive lines")
-                    perm = torch.randperm(len(cdx), device=device)[: M.n_dyn_posl]
+                    perm = torch.randperm(len(cdx), device=device)[: self.sampler["n_dyn_posl"]]
                     cdx = cdx[perm]
                 c[cdx] = 1
 
                 # sample negative lines
                 cdx = Lneg[up, vp].nonzero().flatten()
-                if len(cdx) > M.n_dyn_negl:
+                if len(cdx) > self.sampler["n_dyn_negl"]:
                     # print("too many negative lines")
-                    perm = torch.randperm(len(cdx), device=device)[: M.n_dyn_negl]
+                    perm = torch.randperm(len(cdx), device=device)[: self.sampler["n_dyn_negl"]]
                     cdx = cdx[perm]
                 c[cdx] = 1
 
                 # sample other (unmatched) lines
-                cdx = torch.randint(len(c), (M.n_dyn_othr,), device=device)
+                cdx = torch.randint(len(c), (self.sampler["n_dyn_othr"],), device=device)
                 c[cdx] = 1
             else:
                 c = (u < v).flatten()
@@ -230,9 +231,9 @@ class LineVectorizer(nn.Module):
             u2v /= torch.sqrt((u2v ** 2).sum(-1, keepdim=True)).clamp(min=1e-6)
             feat = torch.cat(
                 [
-                    xyu / 128 * M.use_cood,
-                    xyv / 128 * M.use_cood,
-                    u2v * M.use_slop,
+                    xyu / 128 * self.sampler["use_cood"],
+                    xyv / 128 * self.sampler["use_cood"],
+                    u2v * self.sampler["use_slop"],
                     (u[:, None] > K).float(),
                     (v[:, None] > K).float(),
                 ],

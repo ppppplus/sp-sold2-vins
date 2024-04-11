@@ -5,16 +5,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from lcnn.config import M
+# from ..config import M
 
 
 class MultitaskHead(nn.Module):
-    def __init__(self, input_channels, num_class):
+    def __init__(self, input_channels, num_class, head_size):
         super(MultitaskHead, self).__init__()
 
         m = int(input_channels / 4)
         heads = []
-        for output_channels in sum(M.head_size, []):
+        for output_channels in sum(head_size, []):
             heads.append(
                 nn.Sequential(
                     nn.Conv2d(input_channels, m, kernel_size=3, padding=1),
@@ -23,19 +23,20 @@ class MultitaskHead(nn.Module):
                 )
             )
         self.heads = nn.ModuleList(heads)
-        assert num_class == sum(sum(M.head_size, []))
+        assert num_class == sum(sum(head_size, []))
 
     def forward(self, x):
         return torch.cat([head(x) for head in self.heads], dim=1)
 
 
 class MultitaskLearner(nn.Module):
-    def __init__(self, backbone):
+    def __init__(self, backbone, head_size, loss_weight):
         super(MultitaskLearner, self).__init__()
         self.backbone = backbone
-        head_size = M.head_size
-        self.num_class = sum(sum(head_size, []))
-        self.head_off = np.cumsum([sum(h) for h in head_size])
+        self.head_size = head_size
+        self.loss_weight = loss_weight
+        self.num_class = sum(sum(self.head_size, []))
+        self.head_off = np.cumsum([sum(h) for h in self.head_size])
 
     def forward(self, input_dict):
         image = input_dict["image"]
@@ -53,7 +54,6 @@ class MultitaskLearner(nn.Module):
             T[task] = T[task].permute(1, 2, 0, 3, 4)
 
         offset = self.head_off
-        loss_weight = M.loss_weight
         losses = []
         for stack, output in enumerate(outputs):
             output = output.transpose(0, 1).reshape([-1, batch, row, col]).contiguous()
@@ -84,7 +84,7 @@ class MultitaskLearner(nn.Module):
                 for j in range(2)
             )
             for loss_name in L:
-                L[loss_name].mul_(loss_weight[loss_name])
+                L[loss_name].mul_(self.loss_weight[loss_name])
             losses.append(L)
         result["losses"] = losses
         return result
