@@ -109,15 +109,13 @@ if __name__ == '__main__':
         camera_params = params["camera_cfg"]
         extract_method = point_params["extract_method"]
         #opencv = 1 if extract_method in opencv_method else 0
-        opencv = 0
-
 
     my_pointextract_model = create_pointextract_instance(point_params)  # 建立自定义点特征提取模型
     my_pointmatch_model = create_pointmatch_instance(point_params)  # 建立自定义点特征匹配模型
     camera_model = CameraModel(camera_params)   
     CameraIntrinsicParam = camera_model.generateCameraModel()   # 建立相机模型
     feature_tracker = FeatureTracker(my_pointextract_model, my_pointmatch_model, CameraIntrinsicParam,
-                                     min_cnt=point_params["min_cnt"], opencv=opencv) # 利用点特征模型和相机模型生成点特征处理器
+                                     min_cnt=point_params["min_cnt"]) # 利用点特征模型和相机模型生成点特征处理器
     
     image_topic = params["image_topic"]
     rospy.loginfo("Pointfeature Tracker initialization completed, waiting for img from topic: %s", image_topic)

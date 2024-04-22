@@ -190,32 +190,29 @@ class WunschLinefeatureMatchModel(BaseMatchModel):
         # if self.sampling_mode not in ["regular", "d2_net", "asl_feat"]:
         #     raise ValueError("Wrong sampling mode: " + self.sampling_mode)
 
-    def match(self, vecline1, vecline2, desc1, desc2, valid1, valid2):
-        # matches = self.net.forward(vecline1, vecline2, desc1, desc2)
-        # index_lines1 = np.arange(vecline1.shape[0])
-        # valid_matches = matches != -1
-        # index_lines1 = index_lines1[valid_matches][:, :, ::-1]
-        # index_lines2 = matches[valid_matches]
-        # # matched_lines2 = vecline2[match_indices][:, :, ::-1]
-        # return index_lines1, index_lines2
-        # device = desc1.device
-
+    def match(self, data):
+        vecline0 = data["vecline0"]
+        vecline1 = data["vecline1"]
+        desc0 = data["descriptor0"] 
+        desc1 = data["descriptor1"]
+        valid0 = data["valid0"]
+        valid1 = data["valid1"]
         # Default case when an image has no lines
-        if len(vecline1) == 0:
+        if len(vecline0) == 0:
             return np.empty((0), dtype=int)
-        if len(vecline2) == 0:
-            return -np.ones(len(vecline1), dtype=int)
+        if len(vecline1) == 0:
+            return -np.ones(len(vecline0), dtype=int)
+        desc0 = desc0.reshape((128,-1))
         desc1 = desc1.reshape((128,-1))
-        desc2 = desc2.reshape((128,-1))
 
 
         # Precompute the distance between line points for every pair of lines
         # Assign a score of -1 for unvalid points
-        scores = desc1.t() @ desc2
-        scores[~valid1.flatten()] = -1
-        scores[:, ~valid2.flatten()] = -1
-        scores = scores.reshape(len(vecline1), self.num_samples,
-                                len(vecline2), self.num_samples)
+        scores = desc0.t() @ desc1
+        scores[~valid0.flatten()] = -1
+        scores[:, ~valid1.flatten()] = -1
+        scores = scores.reshape(len(vecline0), self.num_samples,
+                                len(vecline1), self.num_samples)
         scores = scores.permute(0, 2, 1, 3)
         # scores.shape = (n_lines1, n_lines2, num_samples, num_samples)，也就是每一对线段之间的匹配矩阵
 
@@ -226,13 +223,13 @@ class WunschLinefeatureMatchModel(BaseMatchModel):
         if self.cross_check:
             matches2 = self.filter_and_match_lines(
                 scores.permute(1, 0, 3, 2))
-            mutual = matches2[matches] == np.arange(len(vecline1))
+            mutual = matches2[matches] == np.arange(len(vecline0))
             matches[~mutual] = -1
-        index_lines1 = np.arange(vecline1.shape[0])
+        index_lines1 = np.arange(vecline0.shape[0])
         valid_matches = matches != -1
         index_lines1 = index_lines1[valid_matches]
         index_lines2 = matches[valid_matches]
-        # matched_lines2 = vecline2[match_indices][:, :, ::-1]
+        # matched_lines2 = vecline1[match_indices][:, :, ::-1]
         return index_lines1, index_lines2
     
     def filter_and_match_lines(self, scores):

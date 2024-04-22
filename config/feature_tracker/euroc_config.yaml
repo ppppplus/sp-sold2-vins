@@ -37,7 +37,7 @@ line_feature_cfg:
         W: 752 # Input image width
         min_cnt: 60
         num_samples: 5
-        extract_method: "lcnn" # supported: [sold2, lcnn]
+        extract_method: "tplsd" # supported: [sold2, lcnn, tplsd]
         sold2:
                 min_dist_pts: 8
                 line_score: false
@@ -89,11 +89,16 @@ line_feature_cfg:
                         # junction threashold for evaluation (See #5)
                         eval_junc_thres: 0.008
                         
-        match_method: "wunsch"
+        tplsd:
+                model: "tplite"
+
+        match_method: "knn"  # supported: [wunsch, knn]
         wunsch:
                 cross_check: True
                 top_k_candidates: 10
                 line_score: false
+        knn:
+                thresh: 0.75
         
 #camera calibration 
 camera_cfg:

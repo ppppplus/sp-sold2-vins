@@ -27,6 +27,7 @@ from utils_line.my_line_model import create_lineextract_instance, create_linemat
 
 init_pub = False
 count_frame = 0
+opencv_method = ["tplsd"]
 
 def img_callback(img_msg, params_dict):
     # 处理传入的图像，提取线特征
@@ -122,6 +123,8 @@ if __name__ == '__main__':
       params = yaml.load(f, Loader=yaml.FullLoader)
       line_params = params["line_feature_cfg"]
       camera_params = params["camera_cfg"]
+      extract_method = line_params["extract_method"]
+      opencv = 1 if extract_method in opencv_method else 0
       
     my_line_extract_model = create_lineextract_instance(line_params)  # 利用参数文件建立自定义线特征模型
     my_line_match_model = create_linematch_instance(line_params)
@@ -134,7 +137,7 @@ if __name__ == '__main__':
     camera_model = CameraModel(camera_params)
     CameraIntrinsicParam = camera_model.generateCameraModel()
     linefeature_tracker = LineFeatureTracker(my_line_extract_model, my_line_match_model, CameraIntrinsicParam, 
-                                             num_samples=line_params["num_samples"], min_cnt=line_params["min_cnt"]) # 利用点特征模型和相机模型生成点特征处理器
+                                             num_samples=line_params["num_samples"], min_cnt=line_params["min_cnt"], opencv=opencv) # 利用点特征模型和相机模型生成点特征处理器
 
     image_topic = params["image_topic"]
     rospy.loginfo("Linefeature Tracker initialization completed, waiting for img from topic: %s", image_topic)
