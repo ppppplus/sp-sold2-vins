@@ -1,0 +1,121 @@
+
+image_topic: "/cam0/image_raw"
+pl_feature_cfg:
+        # H: 480 # Input image height
+        # W: 752 # Input image width
+        H: 496 #317
+        W: 744 #474
+        min_cnt: 150
+
+        extract_method: "sp-sold2"    # supported: [superpoint]
+        sp-sold2:
+                ckpt_path: "/home/nnplvio_ws/src/sp-sold2-vins/feature_tracker/scripts/utils_pl/pretrained_models/sp-sold2.tar"
+                model_name: "superpoint_simple"
+                model_architecture: "simple"
+                # Backbone related config
+                backbone: "superpoint"
+                backbone_cfg:
+                input_channel: 1 # Use RGB images or grayscale images.
+                depth: 4
+                num_stacks: 2
+                num_blocks: 1
+                num_classes: 5
+                # Junction decoder related config
+                junction_decoder: "superpoint_decoder"
+                junc_decoder_cfg:
+                # Heatmap decoder related config
+                heatmap_decoder: "pixel_shuffle"
+                heatmap_decoder_cfg:
+                # Descriptor decoder related config
+                descriptor_decoder: "superpoint_descriptor"
+                descriptor_decoder_cfg:
+                # Shared configurations
+                grid_size: 8
+                pad_size: 1
+                keep_border_valid: True
+                # Threshold of junction detection
+                detection_thresh: 0.01 # 1/65
+                # Threshold of heatmap detection
+                prob_thresh: 0.5
+                ########### point extraction ##########
+                conf_thresh: 0.015 #0.1 # Detector confidence threshold
+                nms_dist: 4
+                nn_thresh: 0.7
+                border_remove: 4 # Remove points this close to the border.
+                # H: 480
+                # W: 752
+                H: 496 #317
+                W: 744 #474
+                ########### line extraction ##########
+                num_samples: 5
+                min_dist_pts: 8
+                line_score: false
+                sampling: "regular"
+                topk: 300
+                line_detector_cfg:
+                        detect_thresh: 0.3  # depending on your images, you might need to tune this parameter
+                        num_samples: 30
+                        sampling_method: "bilinear"
+                        inlier_thresh: 0.9
+                        use_candidate_suppression: False
+                        nms_dist_tolerance: 3.
+                        use_heatmap_refinement: True
+                        heatmap_refine_cfg: 
+                                mode: "global"
+                                ratio: 0.2
+                                valid_thresh: 0.001
+                                num_blocks: 20
+                                overlap_ratio: 0.5
+       
+point_feature_cfg:
+        H: 496 # Input image height
+        W: 744 # Input image width
+        min_cnt: 150
+
+        # extract_method: "superpoint"    # supported: [superpoint]
+        # superpoint:
+        #         weights_path: '/home/plus/plvins_ws/src/PL-VINS/feature_tracker/scripts/utils_point/superpoint/superpoint_v1.pth'
+        #         nms_dist: 4    # Non Maximum Suppression (NMS) distance
+        #         conf_thresh: 0.015 # Detector confidence threshold
+        #         nn_thresh: 0.7 # Descriptor matching threshold 
+        #         cuda: true # Use cuda GPU to speed up network processing speed
+        # superpoint_trt:
+        #         engine_file_path: "/home/plus/tensorrt/tensorrt/trt_models/superpoint.trt"
+        #         nms_dist: 4
+        #         conf_thresh: 0.015
+       
+        match_method: "nnm"       # supported: [nnm，superglue]
+        nnm:
+                max_length: 5  # Maximum length of point tracks
+                nn_thresh: 0.93 # Descriptor matching threshold
+line_feature_cfg:
+        H: 496 # Input image height
+        W: 744 # Input image width
+        min_cnt: 60
+        num_samples: 5
+        # extract_method: "sold2"
+        # sold2:
+        #         min_dist_pts: 8
+        #         line_score: false
+        #         sampling: "regular"
+        match_method: "wunsch"
+        wunsch:
+                cross_check: True
+                top_k_candidates: 10
+                line_score: false
+
+camera_cfg:
+   model_type: PINHOLE
+   camera_name: camera
+   image_width: 744
+   image_height: 496
+   distortion_parameters:
+      k1: -2.917e-01
+      k2: 8.228e-02
+      p1: 5.333e-05
+      p2: -1.578e-04
+   projection_parameters:
+      fx: 4.616e+02
+      fy: 4.603e+02
+      cx: 3.630e+02
+      cy: 2.481e+02

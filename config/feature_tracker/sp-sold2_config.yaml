@@ -3,8 +3,8 @@ image_topic: "/cam0/image_raw"
 pl_feature_cfg:
         # H: 480 # Input image height
         # W: 752 # Input image width
-        H: 480 #317
-        W: 752 #474
+        H: 820 #480 #317
+        W: 1280 #752 #474
         min_cnt: 150
 
         extract_method: "sp-sold2"    # supported: [superpoint]
@@ -44,8 +44,8 @@ pl_feature_cfg:
                 border_remove: 4 # Remove points this close to the border.
                 # H: 480
                 # W: 752
-                H: 480 #317
-                W: 752 #474
+                H: 820 #480 #317
+                W: 1280 #752 #474
                 ########### line extraction ##########
                 num_samples: 5
                 min_dist_pts: 8
@@ -68,8 +68,8 @@ pl_feature_cfg:
                                 overlap_ratio: 0.5
        
 point_feature_cfg:
-        H: 480 # Input image height
-        W: 752 # Input image width
+        H: 820 #480 # Input image height
+        W: 1280 #752 # Input image width
         min_cnt: 150
 
         # extract_method: "superpoint"    # supported: [superpoint]
@@ -89,8 +89,8 @@ point_feature_cfg:
                 max_length: 5  # Maximum length of point tracks
                 nn_thresh: 0.93 # Descriptor matching threshold
 line_feature_cfg:
-        H: 480 # Input image height
-        W: 752 # Input image width
+        H: 820 #480 # Input image height
+        W: 1280 #752 # Input image width
         min_cnt: 60
         num_samples: 5
         # extract_method: "sold2"
@@ -107,8 +107,8 @@ line_feature_cfg:
 camera_cfg:
    model_type: PINHOLE
    camera_name: camera
-   image_width: 752
-   image_height: 480
+   image_width: 1280 #752
+   image_height: 820 #480
    distortion_parameters:
       k1: -2.917e-01
       k2: 8.228e-02

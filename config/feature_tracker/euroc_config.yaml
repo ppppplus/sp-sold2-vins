@@ -1,11 +1,11 @@
 
 image_topic: "/cam0/image_raw"
 point_feature_cfg:
-        H: 480 # Input image height
-        W: 752 # Input image width
+        H: 820 #480 # Input image height
+        W: 1280 #752 # Input image width
         min_cnt: 120
 
-        extract_method: "superpoint"    # supported: [superpoint, orb, r2d2, harris, sift]
+        extract_method: "r2d2"    # supported: [superpoint, orb, r2d2]
         superpoint:
                 weights_path: '/home/nnplvio_r2d2_ws/src/sp-sold2-vins/feature_tracker/scripts/utils_point/superpoint/superpoint_v1.pth'
                 nms_dist: 4    # Non Maximum Suppression (NMS) distance
@@ -33,8 +33,8 @@ point_feature_cfg:
                 weight_path: "/home/nnplvio_r2d2_ws/src/sp-sold2-vins/feature_tracker/scripts/utils_point/superglue/superglue_outdoor.pth"
 
 line_feature_cfg:
-        H: 480 # Input image height
-        W: 752 # Input image width
+        H: 820 #480 # Input image height
+        W: 1280 #752 # Input image width
         min_cnt: 60
         num_samples: 5
         extract_method: "tplsd" # supported: [sold2, lcnn, tplsd]
@@ -87,12 +87,12 @@ line_feature_cfg:
                         use_conv: 0
 
                         # junction threashold for evaluation (See #5)
-                        eval_junc_thres: 0.008
+                        eval_junc_thres: 0.04
                         
         tplsd:
                 model: "tplite"
 
-        match_method: "knn"  # supported: [wunsch, knn]
+        match_method: "wunsch"  # supported: [wunsch, knn]
         wunsch:
                 cross_check: True
                 top_k_candidates: 10
@@ -104,8 +104,8 @@ line_feature_cfg:
 camera_cfg:
         model_type: PINHOLE
         camera_name: camera
-        image_height: 480
-        image_width: 752
+        image_height: 820 #480
+        image_width: 1280 #752
         distortion_parameters:
                 k1: -2.917e-01
                 k2: 8.228e-02

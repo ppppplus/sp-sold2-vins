@@ -81,6 +81,6 @@ class TPLSDLineExtractModel(BaseExtractModel):
         kls = self.tplsd.detect_tplsd(im)
 
         desc = pylbd.describe_with_lbd(img, kls, 1, 1.44)
-        vecline = kls.reshape((-1,2,2))
+        vecline = kls.reshape((-1,2,2))[:,::-1,::-1]
         return vecline, desc.T  # num_lines*2*2; desc_dim*num_lines;
     
